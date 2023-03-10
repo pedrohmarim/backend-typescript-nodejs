@@ -1,9 +1,9 @@
-const usersMock = require("../data/usersMock.json");
+const UserModel = require("../models/UserModel");
 
 module.exports = {
   async getUserById(req, res) {
-    const { userId } = req.query;
-    const result = usersMock.users.data.find(({ id }) => id === Number(userId));
+    const { username } = req.query;
+    const result = await UserModel.findOne({ username });
     res.status(200).json(result);
   },
 };
