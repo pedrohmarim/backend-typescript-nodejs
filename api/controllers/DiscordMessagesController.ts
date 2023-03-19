@@ -1,9 +1,5 @@
 import { Request, Response } from "express";
-import {
-  IGetDiscordHintsResponse,
-  IGetDiscordMessagesResponse,
-  IMessage,
-} from "../interfaces/IMessage";
+import { IGetDiscordMessagesResponse, IMessage } from "../interfaces/IMessage";
 import { request } from "undici";
 
 const limit = "limit=100";
@@ -40,7 +36,7 @@ function handleDistinctAuthorArray(messages: IMessage[]): string[] {
 }
 
 async function handleGetPreviousMessageArray(id: string) {
-  const result = await request(`${baseUrl}?before=${id}&${limit}`, {
+  const result = await request(`${baseUrl}&before=${id}`, {
     headers: { authorization },
   });
 
@@ -64,7 +60,7 @@ async function getLastElementRecursive(
   const allEqualCharacters = verifyMessage(message.content);
 
   const isValidMessage =
-    rangeNumber <= 0 &&
+    rangeNumber == 0 &&
     !isSticker &&
     !isServerEmoji &&
     !hasOnlyOneMention &&
@@ -100,9 +96,9 @@ async function GetDiscordMessages(req: Request, res: Response) {
 }
 
 async function GetHints(req: Request, res: Response) {
-  const { id } = req.params;
+  const { id } = req.query;
 
-  const result = await request(`${baseUrl}&before=${id}`, {
+  const result = await request(`${baseUrl}&around=${id}`, {
     headers: { authorization },
   });
 
@@ -110,8 +106,8 @@ async function GetHints(req: Request, res: Response) {
 
   const messageIndex = messages.findIndex((x) => x.id === id);
 
-  const previousPosition = res[messageIndex - 1];
-  const consecutivePosition = res[messageIndex + 1];
+  const previousPosition = messages[messageIndex - 1];
+  const consecutivePosition = messages[messageIndex + 1];
 
   if (previousPosition && consecutivePosition)
     return res.json({ previousPosition, consecutivePosition });
