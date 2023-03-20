@@ -2,11 +2,13 @@ import express from "express";
 const router = express.Router();
 
 import {
-  GetDiscordMessages,
   GetHints,
+  GetChoosedMessages,
 } from "./controllers/DiscordMessagesController";
+import { getTimer } from "./chooseFiveRandomMessagePerDay";
 
-router.get("/getChoosedMessage", GetDiscordMessages);
 router.get("/getHints", GetHints);
+router.get("/getChoosedMessages", GetChoosedMessages);
+router.get("/getTimer", getTimer);
 
 export default router;

@@ -28,6 +28,6 @@ export interface IAuthor {
 }
 
 export interface IMention {
-  username: string;
   id: string;
+  username: string;
 }

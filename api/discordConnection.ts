@@ -9,7 +9,5 @@ export default async function DiscordConnection() {
     await interaction.deferReply();
   });
 
-  client.login(
-    "MTA4MzgxOTc5NDM4NzcxMDA4NA.GNxzrc.p-s-ZuU9tJpu9VH-sHrrw_XfSBXGxjdF9NgVIk"
-  );
+  client.login(process.env.DISCORD_TOKEN);
 }

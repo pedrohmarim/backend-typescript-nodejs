@@ -1,11 +1,15 @@
 import { Request, Response } from "express";
 import { IGetDiscordMessagesResponse, IMessage } from "../interfaces/IMessage";
 import { request } from "undici";
+import MessageModel from "../models/MessageModel";
 
+//#region consts
 const limit = "limit=100";
 const baseUrl = `https://discord.com/api/v9/channels/790633651888324618/messages?${limit}`;
-const authorization =
-  "NTkwNTI0NTc5Nzg1NjA1MTIw.GIKTQ8.jQltZga3SGXlGsHfgG-XvE_SANDaUw1aJUl9pA";
+const authorization = process.env.DISCORD_AUTH;
+//#endregion consts
+
+//#region GetDiscordMessages
 
 const range = (start: number, end: number): number =>
   Math.floor(Math.random() * (end - start + 1)) + start;
@@ -83,7 +87,15 @@ async function getLastElementRecursive(
   }
 }
 
-async function GetDiscordMessages(req: Request, res: Response) {
+async function handleDeleteYesterdayMessages() {
+  const yesterdayMessages = await MessageModel.find();
+
+  if (yesterdayMessages.length) await MessageModel.deleteMany({});
+
+  return;
+}
+
+async function ChooseAndSaveDiscordMessage() {
   const result = await request(baseUrl, { headers: { authorization } });
 
   const messages: IMessage[] = await result.body.json();
@@ -92,9 +104,12 @@ async function GetDiscordMessages(req: Request, res: Response) {
 
   const choosedMessage = await getLastElementRecursive(messages, times);
 
-  return res.json(choosedMessage);
+  await MessageModel.create(choosedMessage);
 }
 
+//#endregion GetDiscordMessages
+
+//#region GetHints
 async function GetHints(req: Request, res: Response) {
   const { id } = req.query;
 
@@ -113,4 +128,20 @@ async function GetHints(req: Request, res: Response) {
     return res.json({ previousPosition, consecutivePosition });
 }
 
-export { GetDiscordMessages, GetHints };
+//#endregion GetHints
+
+//#region GetChoosedMessages
+
+async function GetChoosedMessages(req: Request, res: Response) {
+  const result = res.json(await MessageModel.find());
+
+  return res.json(result);
+}
+//#endregion
+
+export {
+  ChooseAndSaveDiscordMessage,
+  GetHints,
+  handleDeleteYesterdayMessages,
+  GetChoosedMessages,
+};
