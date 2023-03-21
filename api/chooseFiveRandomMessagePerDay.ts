@@ -2,18 +2,20 @@ import { Request, Response } from "express";
 import {
   ChooseAndSaveDiscordMessage,
   handleDeleteYesterdayMessages,
+  handleVerifyIfDbIsEmpty,
+  handleLoopForChooseFiveMessages,
 } from "./controllers/DiscordMessagesController";
 
 let timer: string = "";
 
 async function chooseFiveRandomMessagePerDay() {
-  const totalMessagesPerDay = 5;
+  await handleVerifyIfDbIsEmpty();
 
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  setInterval(() => {
+  setInterval(async () => {
     var now = new Date().getTime();
 
     var distance = tomorrow.getTime() - now;
@@ -30,11 +32,9 @@ async function chooseFiveRandomMessagePerDay() {
     if (distance < 0) {
       clearInterval(0);
 
-      handleDeleteYesterdayMessages();
+      await handleDeleteYesterdayMessages();
 
-      for (let index = 1; index <= totalMessagesPerDay; index++) {
-        ChooseAndSaveDiscordMessage();
-      }
+      handleLoopForChooseFiveMessages();
 
       tomorrow.setDate(tomorrow.getDate() + 1);
     }

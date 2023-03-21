@@ -107,6 +107,22 @@ async function ChooseAndSaveDiscordMessage() {
   await MessageModel.create(choosedMessage);
 }
 
+function handleLoopForChooseFiveMessages() {
+  const totalMessagesPerDay = 5;
+
+  for (let index = 1; index <= totalMessagesPerDay; index++) {
+    ChooseAndSaveDiscordMessage();
+  }
+}
+
+async function handleVerifyIfDbIsEmpty() {
+  const hasMessage = await MessageModel.find();
+
+  if (!hasMessage.length) handleLoopForChooseFiveMessages();
+
+  return;
+}
+
 //#endregion GetDiscordMessages
 
 //#region GetHints
@@ -133,7 +149,9 @@ async function GetHints(req: Request, res: Response) {
 //#region GetChoosedMessages
 
 async function GetChoosedMessages(req: Request, res: Response) {
-  const result = res.json(await MessageModel.find());
+  const result = await MessageModel.find();
+
+  console.log(result);
 
   return res.json(result);
 }
@@ -144,4 +162,6 @@ export {
   GetHints,
   handleDeleteYesterdayMessages,
   GetChoosedMessages,
+  handleVerifyIfDbIsEmpty,
+  handleLoopForChooseFiveMessages,
 };
