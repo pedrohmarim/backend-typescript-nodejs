@@ -151,8 +151,6 @@ async function GetHints(req: Request, res: Response) {
 async function GetChoosedMessages(req: Request, res: Response) {
   const result = await MessageModel.find();
 
-  console.log(result);
-
   return res.json(result);
 }
 //#endregion
