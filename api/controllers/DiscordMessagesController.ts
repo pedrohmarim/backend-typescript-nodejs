@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { IGetDiscordMessagesResponse, IMessage } from "../interfaces/IMessage";
 import { request } from "undici";
 import MessageModel from "../models/MessageModel";
+import ScoreModel from "../models/ScoreModel";
+import { IPostSaveScore } from "interfaces/IScore";
 
 //#region consts
 const limit = "limit=100";
@@ -155,8 +157,24 @@ async function GetChoosedMessages(req: Request, res: Response) {
 }
 //#endregion
 
+//#region SaveScore
+
+async function SaveScore(req: Request, res: Response) {
+  const dto: IPostSaveScore = req.body;
+
+  try {
+    await ScoreModel.create(dto);
+
+    return res.json().status(200);
+  } catch (error) {
+    return res.json(error).status(501);
+  }
+}
+//#endregion
+
 export {
   ChooseAndSaveDiscordMessage,
+  SaveScore,
   GetHints,
   handleDeleteYesterdayMessages,
   GetChoosedMessages,
