@@ -1,41 +1,27 @@
 import { model, Schema } from "mongoose";
-import {
-  IGetDiscordMessagesResponse,
-  IMessage,
-  IAuthor,
-  IMention,
-  IAttachments,
-} from "interfaces/IMessage";
+import { IMessage, IAuthor, IMention, IAttachments } from "interfaces/IMessage";
+import { IMessageInstance } from "interfaces/IDiscordleInstance";
 
-const ChoosedMessage = new Schema<IGetDiscordMessagesResponse>(
+const MessageModel = new Schema<IMessageInstance>(
   {
-    authors: {
-      type: [String],
+    channelId: {
+      type: String,
       required: true,
     },
-    message: {
-      type: new Schema<IMessage>({
-        id: {
-          type: String,
+    messages: [
+      {
+        authors: {
+          type: [String],
           required: true,
         },
-        author: new Schema<IAuthor>({
-          id: {
-            type: String,
-            required: true,
-          },
-          username: {
-            type: String,
-            required: true,
-          },
-        }),
-        content: {
-          type: String,
+        message: {
           required: true,
-        },
-        mentions: {
-          type: [
-            new Schema<IMention>({
+          type: new Schema<IMessage>({
+            id: {
+              type: String,
+              required: true,
+            },
+            author: new Schema<IAuthor>({
               id: {
                 type: String,
                 required: true,
@@ -45,28 +31,47 @@ const ChoosedMessage = new Schema<IGetDiscordMessagesResponse>(
                 required: true,
               },
             }),
-          ],
-          required: false,
+            content: {
+              type: String,
+              required: true,
+            },
+            mentions: {
+              type: [
+                new Schema<IMention>({
+                  id: {
+                    type: String,
+                    required: true,
+                  },
+                  username: {
+                    type: String,
+                    required: true,
+                  },
+                }),
+              ],
+              required: false,
+            },
+            attachments: {
+              type: [
+                new Schema<IAttachments>({
+                  url: { type: String, required: true },
+                }),
+              ],
+              required: false,
+            },
+            sticker_items: {
+              type: [],
+              required: false,
+            },
+            timestamp: {
+              type: String,
+              required: true,
+            },
+          }),
         },
-        attachments: {
-          type: [
-            new Schema<IAttachments>({ url: { type: String, required: true } }),
-          ],
-          required: false,
-        },
-        sticker_items: {
-          type: [],
-          required: false,
-        },
-        timestamp: {
-          type: String,
-          required: true,
-        },
-      }),
-      required: true,
-    },
+      },
+    ],
   },
   { timestamps: true }
 );
 
-export default model("ChoosedMessage", ChoosedMessage);
+export default model("MessageModel", MessageModel);

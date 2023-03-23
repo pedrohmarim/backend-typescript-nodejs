@@ -2,12 +2,19 @@ import { Request, Response } from "express";
 import { IGetDiscordMessagesResponse, IMessage } from "../interfaces/IMessage";
 import { request } from "undici";
 import MessageModel from "../models/MessageModel";
+import DiscordleInstanceModel from "../models/DiscordleInstanceModel";
 import ScoreModel from "../models/ScoreModel";
+import baseUrl from "./baseUrl";
 import { IPostSaveScore } from "interfaces/IScore";
+import { chooseFiveRandomMessagePerDay } from "../chooseFiveRandomMessagePerDay";
+import {
+  ICreateDiscordleInstanceModel,
+  ICreateDiscordleInstancePost,
+  IMessageInstance,
+} from "interfaces/IDiscordleInstance";
 
 //#region consts
-const limit = "limit=100";
-const baseUrl = `https://discord.com/api/v9/channels/790633651888324618/messages?${limit}`;
+
 const authorization = process.env.DISCORD_AUTH;
 //#endregion consts
 
@@ -42,6 +49,8 @@ function handleDistinctAuthorArray(messages: IMessage[]): string[] {
 }
 
 async function handleGetPreviousMessageArray(id: string) {
+  const baseUrl = await DiscordleInstanceModel.findOne();
+
   const result = await request(`${baseUrl}&before=${id}`, {
     headers: { authorization },
   });
@@ -89,16 +98,23 @@ async function getLastElementRecursive(
   }
 }
 
-async function handleDeleteYesterdayMessages() {
-  const yesterdayMessages = await MessageModel.find();
+async function handleDeleteYesterdayMessages(channelId: string) {
+  const yesterdayMessages = await MessageModel.find({ channelId });
 
   if (yesterdayMessages.length) await MessageModel.deleteMany({});
-
-  return;
 }
 
-async function ChooseAndSaveDiscordMessage() {
-  const result = await request(baseUrl, { headers: { authorization } });
+async function ChooseAndSaveDiscordMessage(
+  instanceUrl: string,
+  authToken: string
+) {
+  console.log(typeof instanceUrl);
+
+  if (!authToken && !instanceUrl) return;
+
+  const result = await request(instanceUrl, {
+    headers: { authorization: authToken },
+  });
 
   const messages: IMessage[] = await result.body.json();
 
@@ -106,23 +122,33 @@ async function ChooseAndSaveDiscordMessage() {
 
   const choosedMessage = await getLastElementRecursive(messages, times);
 
-  await MessageModel.create(choosedMessage);
+  return choosedMessage;
 }
 
-function handleLoopForChooseFiveMessages() {
+async function handleLoopForChooseFiveMessages(channelId: string) {
   const totalMessagesPerDay = 5;
 
+  const choosedMessages: IGetDiscordMessagesResponse[] = [];
+
+  const discordleInstance: ICreateDiscordleInstanceModel =
+    await DiscordleInstanceModel.findOne({ channelId });
+
+  const { instanceUrl, authToken } = discordleInstance;
+
   for (let index = 1; index <= totalMessagesPerDay; index++) {
-    ChooseAndSaveDiscordMessage();
+    const choosedMessage = await ChooseAndSaveDiscordMessage(
+      instanceUrl,
+      authToken
+    );
+
+    choosedMessages.push(choosedMessage);
   }
 }
 
-async function handleVerifyIfDbIsEmpty() {
-  const hasMessage = await MessageModel.find();
+async function handleVerifyIfDbIsEmpty(channelId: string) {
+  const hasMessage = await MessageModel.find({ channelId });
 
-  if (!hasMessage.length) handleLoopForChooseFiveMessages();
-
-  return;
+  if (!hasMessage.length) handleLoopForChooseFiveMessages(channelId);
 }
 
 //#endregion GetDiscordMessages
@@ -151,7 +177,9 @@ async function GetHints(req: Request, res: Response) {
 //#region GetChoosedMessages
 
 async function GetChoosedMessages(req: Request, res: Response) {
-  const result = await MessageModel.find();
+  const { channelid } = req.headers;
+
+  const result = await MessageModel.find({ channelid });
 
   return res.json(result);
 }
@@ -170,10 +198,41 @@ async function SaveScore(req: Request, res: Response) {
     return res.json(error).status(501);
   }
 }
+
+//#endregion
+
+//#region SaveScore
+
+async function CreateDiscordleInstance(req: Request, res: Response) {
+  const body: ICreateDiscordleInstancePost = req.body;
+
+  const { channelId } = body;
+
+  const alreadyExists = await DiscordleInstanceModel.findOne({ channelId });
+
+  if (alreadyExists)
+    return res.json({
+      errorMessage:
+        "Discordle já criado para o ID Canal de texto específicado.",
+    });
+
+  const instanceUrl = baseUrl(body.channelId);
+
+  const dto: ICreateDiscordleInstanceModel = {
+    ...body,
+    instanceUrl,
+  };
+
+  await DiscordleInstanceModel.create(dto);
+
+  await chooseFiveRandomMessagePerDay(channelId);
+}
+
 //#endregion
 
 export {
   ChooseAndSaveDiscordMessage,
+  CreateDiscordleInstance,
   SaveScore,
   GetHints,
   handleDeleteYesterdayMessages,

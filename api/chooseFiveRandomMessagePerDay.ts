@@ -7,8 +7,8 @@ import {
 
 let timer: string = "";
 
-async function chooseFiveRandomMessagePerDay() {
-  await handleVerifyIfDbIsEmpty();
+async function chooseFiveRandomMessagePerDay(channelId: string) {
+  await handleVerifyIfDbIsEmpty(channelId);
 
   const today = new Date();
   const tomorrow = new Date(today);
@@ -31,9 +31,9 @@ async function chooseFiveRandomMessagePerDay() {
     if (distance < 0) {
       clearInterval(0);
 
-      await handleDeleteYesterdayMessages();
+      await handleDeleteYesterdayMessages(channelId);
 
-      handleLoopForChooseFiveMessages();
+      await handleLoopForChooseFiveMessages(channelId);
 
       tomorrow.setDate(tomorrow.getDate() + 1);
     }
