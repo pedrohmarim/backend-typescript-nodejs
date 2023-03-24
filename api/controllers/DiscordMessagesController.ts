@@ -7,9 +7,11 @@ import baseUrl from "./baseUrl";
 import moment from "moment";
 import { IScoreInstance } from "interfaces/IScore";
 import {
+  IChannel,
   IGetDiscordMessagesResponse,
   IMessage,
   IMessageInstance,
+  IServer,
 } from "../interfaces/IMessage";
 import {
   ICreateDiscordleInstanceModel,
@@ -128,6 +130,27 @@ async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
   return choosedMessage;
 }
 
+async function getServerName(channelId: string, authToken: string) {
+  const channelResult = await request(
+    `https://discord.com/api/channels/${channelId}`,
+    {
+      headers: { authorization: authToken },
+    }
+  );
+
+  const channel: IChannel = await channelResult.body.json();
+
+  const serverResult = await request(
+    `https://discord.com/api/guilds/${channel.guild_id}`,
+    {
+      headers: { authorization: authToken },
+    }
+  );
+
+  const server: IServer = await serverResult.body.json();
+
+  return `${server.name} - #${channel.name}`;
+}
 async function handleLoopForChooseFiveMessages(channelId: string) {
   const totalMessagesPerDay = 5;
 
@@ -144,8 +167,11 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     choosedMessages.push(choosedMessage);
   }
 
+  const serverName = await getServerName(channelId, authToken);
+
   const messageInstance: IMessageInstance = {
     messages: choosedMessages,
+    serverName,
     channelId,
   };
 
@@ -188,9 +214,11 @@ async function GetHints(req: Request, res: Response) {
 async function GetChoosedMessages(req: Request, res: Response) {
   const { channelId } = req.query;
 
-  const result = await MessageInstance.findOne({ channelId });
+  const messageInstance: IMessageInstance = await MessageInstance.findOne({
+    channelId,
+  });
 
-  return res.json(result);
+  return res.json(messageInstance);
 }
 //#endregion
 
@@ -287,6 +315,7 @@ function updateMessagesAtMidnight(channelId: string) {
 //#endregion
 
 //#region DiscordleInstance
+
 async function CreateDiscordleInstance(req: Request, res: Response) {
   const body: ICreateDiscordleInstancePost = req.body;
 

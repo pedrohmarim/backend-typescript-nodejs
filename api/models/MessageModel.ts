@@ -13,6 +13,10 @@ const MessageInstance = new Schema<IMessageInstance>(
       type: String,
       required: true,
     },
+    serverName: {
+      type: String,
+      required: true,
+    },
     messages: [
       {
         authors: {
