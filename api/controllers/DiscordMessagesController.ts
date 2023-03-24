@@ -1,25 +1,22 @@
 import { Request, Response } from "express";
-import { IGetDiscordMessagesResponse, IMessage } from "../interfaces/IMessage";
 import { request } from "undici";
-import MessageModel from "../models/MessageModel";
+import MessageInstance from "../models/MessageModel";
 import DiscordleInstanceModel from "../models/DiscordleInstanceModel";
 import ScoreModel from "../models/ScoreModel";
 import baseUrl from "./baseUrl";
-import { IPostSaveScore } from "interfaces/IScore";
-import { chooseFiveRandomMessagePerDay } from "../chooseFiveRandomMessagePerDay";
+import moment from "moment";
+import { IScoreInstance } from "interfaces/IScore";
+import {
+  IGetDiscordMessagesResponse,
+  IMessage,
+  IMessageInstance,
+} from "../interfaces/IMessage";
 import {
   ICreateDiscordleInstanceModel,
   ICreateDiscordleInstancePost,
-  IMessageInstance,
 } from "interfaces/IDiscordleInstance";
 
-//#region consts
-
-const authorization = process.env.DISCORD_AUTH;
-//#endregion consts
-
 //#region GetDiscordMessages
-
 const range = (start: number, end: number): number =>
   Math.floor(Math.random() * (end - start + 1)) + start;
 
@@ -109,7 +106,7 @@ async function getLastElementRecursive(
 }
 
 async function handleDeleteYesterdayMessages(channelId: string) {
-  await MessageModel.findOneAndDelete({ channelId });
+  await MessageInstance.findOneAndDelete({ channelId });
 }
 
 async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
@@ -152,15 +149,14 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     channelId,
   };
 
-  await MessageModel.create(messageInstance);
+  await MessageInstance.create(messageInstance);
 }
 
 async function handleVerifyIfDbIsEmpty(channelId: string) {
-  const hasMessage = await MessageModel.find({ channelId });
+  const hasMessage = await MessageInstance.find({ channelId });
 
   if (!hasMessage.length) await handleLoopForChooseFiveMessages(channelId);
 }
-
 //#endregion GetDiscordMessages
 
 //#region GetHints
@@ -186,38 +182,111 @@ async function GetHints(req: Request, res: Response) {
   if (previousPosition && consecutivePosition)
     return res.json({ previousPosition, consecutivePosition });
 }
-
 //#endregion GetHints
 
 //#region GetChoosedMessages
-
 async function GetChoosedMessages(req: Request, res: Response) {
   const { channelId } = req.query;
 
-  const result = await MessageModel.findOne({ channelId });
+  const result = await MessageInstance.findOne({ channelId });
 
   return res.json(result);
 }
 //#endregion
 
 //#region SaveScore
+async function getAwnser(userId: string) {
+  const currentDate = new Date().toLocaleDateString();
+
+  const currentDayAwnsers: IScoreInstance = await ScoreModel.findOne({
+    userId: userId,
+    $and: [{ "scores.date": { $eq: currentDate } }],
+  }).select("scores.scoreDetails");
+
+  return currentDayAwnsers;
+}
+
+async function VerifyAlreadyAwnsered(req: Request, res: Response) {
+  const { userId } = req.query;
+
+  const currentDayAwnsers = await getAwnser(userId.toString());
+
+  if (currentDayAwnsers) return res.json(currentDayAwnsers.scores);
+  else res.json([]);
+}
 
 async function SaveScore(req: Request, res: Response) {
-  const dto: IPostSaveScore = req.body;
+  const dto: IScoreInstance = req.body;
 
-  try {
-    await ScoreModel.create(dto);
+  const { scores, userId, channelId } = dto;
 
-    return res.json().status(200);
-  } catch (error) {
-    return res.json(error).status(501);
-  }
+  const currentDayAwnsers = await getAwnser(userId.toString());
+
+  if (currentDayAwnsers) return res.json();
+
+  const query = { channelId };
+  const update = { userId, $push: { scores } };
+  const options = { upsert: true };
+
+  await ScoreModel.updateOne(query, update, options);
+
+  return res.json().status(200);
 }
 
 //#endregion
 
-//#region SaveScore
+//#region Timer
+let timer = "";
 
+function GetTimer(req: Request, res: Response) {
+  return res.json(timer);
+}
+
+function updateMessagesAtMidnight(channelId: string) {
+  const now = moment();
+
+  const timeUntilMidnight = moment.duration({
+    hours: 23 - now.hours(),
+    minutes: 59 - now.minutes(),
+    seconds: 59 - now.seconds(),
+    milliseconds: 1000 - now.milliseconds(),
+  });
+
+  let timeLeft = moment
+    .utc(timeUntilMidnight.asMilliseconds())
+    .format("HH:mm:ss");
+
+  setInterval(function () {
+    timeUntilMidnight.subtract(1, "second");
+
+    timeLeft = moment
+      .utc(timeUntilMidnight.asMilliseconds())
+      .format("HH:mm:ss");
+
+    timer = timeLeft;
+    console.log(`Tempo restante até a meia-noite: ${timeLeft}`);
+  }, 1000);
+
+  const msUntilMidnight = moment
+    .duration({
+      hours: 23 - now.hours(),
+      minutes: 59 - now.minutes(),
+      seconds: 59 - now.seconds(),
+      milliseconds: 1000 - now.milliseconds(),
+    })
+    .asMilliseconds();
+
+  setTimeout(async () => {
+    await handleDeleteYesterdayMessages(channelId);
+
+    await handleLoopForChooseFiveMessages(channelId);
+
+    updateMessagesAtMidnight(channelId);
+  }, msUntilMidnight);
+}
+//#endregion
+
+//#region DiscordleInstance
 async function CreateDiscordleInstance(req: Request, res: Response) {
   const body: ICreateDiscordleInstancePost = req.body;
 
@@ -240,11 +309,12 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 
   await DiscordleInstanceModel.create(dto);
 
-  await chooseFiveRandomMessagePerDay(channelId);
+  await handleVerifyIfDbIsEmpty(channelId);
+
+  updateMessagesAtMidnight(channelId);
 
   return res.json().status(200);
 }
-
 //#endregion
 
 export {
@@ -255,4 +325,6 @@ export {
   GetChoosedMessages,
   handleVerifyIfDbIsEmpty,
   handleLoopForChooseFiveMessages,
+  GetTimer,
+  VerifyAlreadyAwnsered,
 };

@@ -1,7 +1,12 @@
-export interface IPostSaveScore {
-  awnsers: IAwnser[];
-  date: string;
+export interface IScoreInstance {
   userId: string;
+  scores: IPostSaveScore;
+  channelId: string;
+}
+
+export interface IPostSaveScore {
+  scoreDetails: IAwnser[];
+  date: string;
 }
 
 export interface IAwnser {

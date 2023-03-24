@@ -1,8 +1,13 @@
 import { model, Schema } from "mongoose";
-import { IMessage, IAuthor, IMention, IAttachments } from "interfaces/IMessage";
-import { IMessageInstance } from "interfaces/IDiscordleInstance";
+import {
+  IMessage,
+  IAuthor,
+  IMention,
+  IAttachments,
+  IMessageInstance,
+} from "interfaces/IMessage";
 
-const MessageModel = new Schema<IMessageInstance>(
+const MessageInstance = new Schema<IMessageInstance>(
   {
     channelId: {
       type: String,
@@ -74,4 +79,4 @@ const MessageModel = new Schema<IMessageInstance>(
   { timestamps: true }
 );
 
-export default model("MessageModel", MessageModel);
+export default model("MessageInstance", MessageInstance);

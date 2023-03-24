@@ -1,28 +1,9 @@
 import { model, Schema } from "mongoose";
 
-import { IPostSaveScore, IAwnser } from "interfaces/IScore";
+import { IAwnser, IScoreInstance } from "interfaces/IScore";
 
-const Score = new Schema<IPostSaveScore>({
-  awnsers: {
-    type: [
-      new Schema<IAwnser>({
-        score: {
-          type: Number,
-          required: true,
-        },
-        success: {
-          type: Boolean,
-          required: true,
-        },
-        tabKey: {
-          type: Number,
-          required: true,
-        },
-      }),
-    ],
-    required: true,
-  },
-  date: {
+const ScoreInstance = new Schema<IScoreInstance>({
+  channelId: {
     type: String,
     required: true,
   },
@@ -30,6 +11,33 @@ const Score = new Schema<IPostSaveScore>({
     type: String,
     required: true,
   },
+  scores: {
+    date: {
+      type: String,
+      required: true,
+    },
+    scoreDetails: [
+      {
+        type: [
+          new Schema<IAwnser>({
+            score: {
+              type: Number,
+              required: true,
+            },
+            success: {
+              type: Boolean,
+              required: true,
+            },
+            tabKey: {
+              type: Number,
+              required: true,
+            },
+          }),
+        ],
+        required: true,
+      },
+    ],
+  },
 });
 
-export default model("Score", Score);
+export default model("ScoreInstance", ScoreInstance);

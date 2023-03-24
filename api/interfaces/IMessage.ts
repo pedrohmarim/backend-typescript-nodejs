@@ -1,3 +1,8 @@
+export interface IMessageInstance {
+  messages: IGetDiscordMessagesResponse[];
+  channelId: string;
+}
+
 export interface IGetDiscordMessagesResponse {
   message: IMessage;
   authors: string[];
