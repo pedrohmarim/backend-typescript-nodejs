@@ -130,7 +130,7 @@ async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
   return choosedMessage;
 }
 
-async function getServerName(channelId: string, authToken: string) {
+async function GetServerName(channelId: string, authToken: string) {
   const channelResult = await request(
     `https://discord.com/api/channels/${channelId}`,
     {
@@ -167,7 +167,7 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     choosedMessages.push(choosedMessage);
   }
 
-  const serverName = await getServerName(channelId, authToken);
+  const serverName = await GetServerName(channelId, authToken);
 
   const messageInstance: IMessageInstance = {
     messages: choosedMessages,
