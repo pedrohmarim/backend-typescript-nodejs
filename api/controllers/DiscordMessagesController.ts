@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { request } from "undici";
+import Axios from "axios";
 import MessageInstance from "../models/MessageModel";
 import DiscordleInstanceModel from "../models/DiscordleInstanceModel";
 import ScoreModel from "../models/ScoreModel";
@@ -52,11 +52,11 @@ async function handleGetPreviousMessageArray(
   instanceUrl: string,
   authToken: string
 ) {
-  const result = await request(`${instanceUrl}&before=${id}`, {
+  const result = await Axios.get(`${instanceUrl}&before=${id}`, {
     headers: { authorization: authToken },
-  });
+  }).then(({ data }) => data);
 
-  const messages: IMessage[] = await result.body.json();
+  const messages: IMessage[] = result;
 
   return messages;
 }
@@ -112,11 +112,11 @@ async function handleDeleteYesterdayMessages(channelId: string) {
 }
 
 async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
-  const result = await request(`${instanceUrl}`, {
+  const result = await Axios.get(`${instanceUrl}`, {
     headers: { authorization: authToken },
-  });
+  }).then(({ data }) => data);
 
-  const messages: IMessage[] = await result.body.json();
+  const messages: IMessage[] = result;
 
   const times: number = range(1, 5);
 
@@ -131,23 +131,23 @@ async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
 }
 
 async function GetServerName(channelId: string, authToken: string) {
-  const channelResult = await request(
+  const channelResult = await Axios.get(
     `https://discord.com/api/channels/${channelId}`,
     {
       headers: { authorization: authToken },
     }
-  );
+  ).then(({ data }) => data);
 
-  const channel: IChannel = await channelResult.body.json();
+  const channel: IChannel = channelResult;
 
-  const serverResult = await request(
+  const serverResult = await Axios.get(
     `https://discord.com/api/guilds/${channel.guild_id}`,
     {
       headers: { authorization: authToken },
     }
-  );
+  ).then(({ data }) => data);
 
-  const server: IServer = await serverResult.body.json();
+  const server: IServer = serverResult;
 
   return `${server.name} - #${channel.name}`;
 }
@@ -195,11 +195,11 @@ async function GetHints(req: Request, res: Response) {
 
   const { instanceUrl, authToken } = discordleInstance;
 
-  const result = await request(`${instanceUrl}&around=${id}`, {
+  const result = await Axios.get(`${instanceUrl}&around=${id}`, {
     headers: { authorization: authToken },
-  });
+  }).then(({ data }) => data);
 
-  const messages: IMessage[] = await result.body.json();
+  const messages: IMessage[] = result;
 
   const messageIndex = messages.findIndex((x) => x.id === id);
 
