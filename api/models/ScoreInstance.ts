@@ -7,11 +7,11 @@ const ScoreInstance = new Schema<IScoreInstance>({
     type: String,
     required: true,
   },
-  userId: {
-    type: String,
-    required: true,
-  },
   scores: {
+    userId: {
+      type: String,
+      required: true,
+    },
     date: {
       type: String,
       required: true,

@@ -1,14 +1,3 @@
-export interface ICreateDiscordleInstancePost {
-  authToken: string;
-  channelId: string;
-}
-
-export interface ICreateDiscordleInstanceModel
-  extends ICreateDiscordleInstancePost {
-  instanceUrl: string;
-}
-//tirar daqui pra cima
-
 export interface IGuildInstance {
   guildId: string;
   guildName: string;
@@ -24,4 +13,5 @@ export interface IInstanceChannels {
 export interface IMember {
   id: string;
   username: string;
+  avatarUrl: string;
 }

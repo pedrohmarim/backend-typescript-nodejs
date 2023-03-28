@@ -9,11 +9,6 @@ export interface IGetDiscordMessagesResponse {
   authors: string[];
 }
 
-export interface IGetDiscordHintsResponse {
-  previousPosition: IMessage;
-  consecutivePosition: IMessage;
-}
-
 export interface IMessage {
   id: string;
   author: IAuthor;

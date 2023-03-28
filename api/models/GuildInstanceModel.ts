@@ -37,6 +37,10 @@ const GuildInstance = new Schema<IGuildInstance>(
                   type: String,
                   required: true,
                 },
+                avatarUrl: {
+                  type: String,
+                  required: true,
+                },
               }),
             },
           ],

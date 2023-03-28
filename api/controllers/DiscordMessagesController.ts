@@ -12,10 +12,7 @@ import {
   IMessageInstance,
   IServer,
 } from "../interfaces/IMessage";
-import {
-  ICreateDiscordleInstanceModel,
-  IGuildInstance,
-} from "interfaces/IGuildInstance";
+import { IGuildInstance } from "interfaces/IGuildInstance";
 
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
@@ -39,8 +36,8 @@ function handleDistinctAuthorArray(messages: IMessage[]): string[] {
   const authors: string[] = [];
 
   messages.forEach(({ author }) => {
-    const { username } = author;
-    authors.push(username);
+    const { username, bot } = author;
+    if (!bot) authors.push(username);
   });
 
   return authors.filter(
@@ -62,12 +59,7 @@ async function handleGetPreviousMessageArray(
   return messages;
 }
 
-async function getLastElementRecursive(
-  messages: IMessage[],
-  rangeNumber: number,
-  instanceUrl: string,
-  authToken: string
-): Promise<IGetDiscordMessagesResponse> {
+function ChooseFiveMessages(messages: IMessage[]): IGetDiscordMessagesResponse {
   const randomPosition = range(0, messages.length - 1);
 
   const message: IMessage = messages[randomPosition];
@@ -81,7 +73,6 @@ async function getLastElementRecursive(
   const isTextMessage = message.type === 0 && message.content !== "";
 
   const isValidMessage =
-    rangeNumber == 0 &&
     !isSticker &&
     !isServerEmoji &&
     !hasOnlyOneMention &&
@@ -94,45 +85,11 @@ async function getLastElementRecursive(
     const authors = handleDistinctAuthorArray(messages);
 
     return { message, authors };
-  } else {
-    const lastElementId = messages[messages.length - 1].id;
-
-    const previousArray = await handleGetPreviousMessageArray(
-      lastElementId,
-      instanceUrl,
-      authToken
-    );
-
-    return getLastElementRecursive(
-      previousArray,
-      rangeNumber - 1 < 0 ? range(1, 5) : rangeNumber - 1,
-      instanceUrl,
-      authToken
-    );
-  }
+  } else return ChooseFiveMessages(messages);
 }
 
 async function handleDeleteYesterdayMessages(channelId: string) {
   await MessageInstance.findOneAndDelete({ channelId });
-}
-
-async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
-  const result = await request(`${instanceUrl}`, {
-    headers: { authorization: authToken },
-  });
-
-  const messages: IMessage[] = await result.body.json();
-
-  const times: number = range(1, 5);
-
-  const choosedMessage = await getLastElementRecursive(
-    messages,
-    times,
-    instanceUrl,
-    authToken
-  );
-
-  return choosedMessage;
 }
 
 async function GetServerName(channelId: string, authToken: string) {
@@ -158,15 +115,31 @@ async function GetServerName(channelId: string, authToken: string) {
 }
 
 async function handleLoopForChooseFiveMessages(channelId: string) {
-  const totalMessagesPerDay = 5;
-
   const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=100`;
+
+  const result = await request(`${instanceUrl}`, {
+    headers: { authorization: authToken },
+  });
+
+  const messages: IMessage[] = await result.body.json();
+
+  // maximo de 500 mensagens
+  for (let index = 1; index <= 5; index++) {
+    const lastElementId = messages[messages.length - 1].id;
+
+    const previousArray = await handleGetPreviousMessageArray(
+      lastElementId,
+      instanceUrl,
+      authToken
+    );
+
+    messages.concat(previousArray);
+  }
 
   const choosedMessages: IGetDiscordMessagesResponse[] = [];
 
-  for (let index = 1; index <= totalMessagesPerDay; index++) {
-    const choosedMessage = await ChooseDiscordMessage(instanceUrl, authToken);
-
+  for (let index = 1; index <= 5; index++) {
+    const choosedMessage = ChooseFiveMessages(messages);
     choosedMessages.push(choosedMessage);
   }
 
@@ -179,12 +152,16 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
   };
 
   await MessageInstance.create(messageInstance);
+
+  return;
 }
 
 async function handleVerifyIfDbIsEmpty(channelId: string) {
   const hasMessage = await MessageInstance.find({ channelId });
 
   if (!hasMessage.length) await handleLoopForChooseFiveMessages(channelId);
+
+  return;
 }
 //#endregion GetDiscordMessages
 
@@ -192,10 +169,7 @@ async function handleVerifyIfDbIsEmpty(channelId: string) {
 async function GetHints(req: Request, res: Response) {
   const { id, channelId } = req.query;
 
-  const discordleInstance: ICreateDiscordleInstanceModel =
-    await GuildInstanceModel.findOne({ channelId });
-
-  const { instanceUrl, authToken } = discordleInstance;
+  const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=50`;
 
   const result = await request(`${instanceUrl}&around=${id}`, {
     headers: { authorization: authToken },
@@ -249,14 +223,14 @@ async function VerifyAlreadyAwnsered(req: Request, res: Response) {
 async function SaveScore(req: Request, res: Response) {
   const dto: IScoreInstance = req.body;
 
-  const { scores, userId, channelId } = dto;
+  const { scores, channelId } = dto;
 
-  const currentDayAwnsers = await getAwnser(userId.toString());
+  const currentDayAwnsers = await getAwnser(scores.userId.toString());
 
   if (currentDayAwnsers) return res.json();
 
   const query = { channelId };
-  const update = { userId, $push: { scores } };
+  const update = { userId: scores.userId, $push: { scores } };
   const options = { upsert: true };
 
   await ScoreModel.updateOne(query, update, options);
@@ -346,7 +320,7 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 
   updateMessagesAtMidnight(channelId.toString());
 
-  return res.status(200);
+  return res.json().status(200);
 }
 //#endregion
 
