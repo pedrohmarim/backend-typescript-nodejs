@@ -238,7 +238,7 @@ async function SaveScore(req: Request, res: Response) {
     channelId
   );
 
-  if (currentDayAwnsers.length) return res.json();
+  if (currentDayAwnsers?.length) return res.json();
 
   const guildInstance = await GuildInstanceModel.findOne({
     guildId,

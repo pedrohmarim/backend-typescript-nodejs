@@ -47,6 +47,11 @@ const DiscordBotConnection = async () => {
     };
 
     await CreateGuildInstance(guildInstance);
+
+    guild.channels.create({
+      name: "Daily Discordle",
+      type: ChannelType.GuildText,
+    });
   });
 
   client.login(process.env.BOT_TOKEN);
