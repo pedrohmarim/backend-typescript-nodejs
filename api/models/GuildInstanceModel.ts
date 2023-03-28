@@ -41,6 +41,10 @@ const GuildInstance = new Schema<IGuildInstance>(
                   type: String,
                   required: true,
                 },
+                inUse: {
+                  type: Boolean,
+                  required: true,
+                },
               }),
             },
           ],

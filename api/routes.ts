@@ -8,6 +8,7 @@ router.get("/getChoosedMessages", Controller.GetChoosedMessages);
 router.get("/getTimer", Controller.GetTimer);
 router.get("/verifyAlreadyAwnsered", Controller.VerifyAlreadyAwnsered);
 router.get("/getInstanceChannels", Controller.GetInstanceChannels);
+router.get("/getChannelMembers", Controller.GetChannelMembers);
 router.post("/createDiscordleInstance", Controller.CreateDiscordleInstance);
 router.post("/saveScore", Controller.SaveScore);
 

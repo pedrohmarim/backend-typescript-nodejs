@@ -29,6 +29,7 @@ const DiscordBotConnection = async () => {
               id: member.id,
               username: member.nickname || member.user.username,
               avatarUrl: member.displayAvatarURL(),
+              inUse: false,
             } as IMember;
           });
 

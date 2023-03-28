@@ -1,12 +1,14 @@
+import { IMember } from "./IGuildInstance";
+
 export interface IScoreInstance {
-  scores: IPostSaveScore;
+  scores: IPostSaveScore[];
   channelId: string;
 }
 
 export interface IPostSaveScore {
   scoreDetails: IAwnser[];
   date: string;
-  userId: string;
+  member: IMember;
 }
 
 export interface IAwnser {

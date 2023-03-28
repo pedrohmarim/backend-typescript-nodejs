@@ -4,7 +4,7 @@ import MessageInstance from "../models/MessageInstance";
 import GuildInstanceModel from "../models/GuildInstanceModel";
 import ScoreModel from "../models/ScoreInstance";
 import moment from "moment";
-import { IScoreInstance } from "interfaces/IScore";
+import { IAwnser, IScoreInstance } from "interfaces/IScore";
 import {
   IChannel,
   IGetDiscordMessagesResponse,
@@ -200,37 +200,56 @@ async function GetChoosedMessages(req: Request, res: Response) {
 //#endregion
 
 //#region SaveScore
-async function getAwnser(userId: string) {
+async function getAwnser(userId: string, channelId: string) {
   const currentDate = new Date().toLocaleDateString();
 
-  const currentDayAwnsers: IScoreInstance = await ScoreModel.findOne({
-    userId: userId,
-    $and: [{ "scores.date": { $eq: currentDate } }],
-  }).select("scores.scoreDetails");
+  const scoreInstance: IScoreInstance = await ScoreModel.findOne({
+    channelId,
+  });
 
-  return currentDayAwnsers;
+  if (!scoreInstance) return;
+
+  const currentDayAwnsers = scoreInstance.scores.find(
+    (x) => x.member.id === userId && x.date === currentDate
+  );
+
+  if (!currentDayAwnsers) return [] as IAwnser[];
+
+  return currentDayAwnsers.scoreDetails;
 }
 
 async function VerifyAlreadyAwnsered(req: Request, res: Response) {
-  const { userId } = req.query;
+  const { userId, channelId } = req.query;
 
-  const currentDayAwnsers = await getAwnser(userId.toString());
+  const currentDayAwnsers = await getAwnser(
+    userId.toString(),
+    channelId.toString()
+  );
 
-  if (currentDayAwnsers) return res.json(currentDayAwnsers.scores);
+  if (currentDayAwnsers) return res.json(currentDayAwnsers);
   else res.json([]);
 }
 
 async function SaveScore(req: Request, res: Response) {
-  const dto: IScoreInstance = req.body;
+  const { scores, channelId, guildId } = req.body;
 
-  const { scores, channelId } = dto;
+  const currentDayAwnsers = await getAwnser(
+    scores.userId.toString(),
+    channelId
+  );
 
-  const currentDayAwnsers = await getAwnser(scores.userId.toString());
+  if (currentDayAwnsers.length) return res.json();
 
-  if (currentDayAwnsers) return res.json();
+  const guildInstance = await GuildInstanceModel.findOne({
+    guildId,
+  });
+
+  const channel = guildInstance.channels.find((c) => c.channelId === channelId);
+
+  const member = channel.members.find((member) => member.id === scores.userId);
 
   const query = { channelId };
-  const update = { userId: scores.userId, $push: { scores } };
+  const update = { member, $push: { scores: { ...scores, member } } };
   const options = { upsert: true };
 
   await ScoreModel.updateOne(query, update, options);
@@ -303,6 +322,24 @@ async function GetInstanceChannels(req: Request, res: Response) {
   return res.json(guildInstance);
 }
 
+async function GetChannelMembers(req: Request, res: Response) {
+  const { guildId, channelId } = req.query;
+
+  const guildInstance = await GuildInstanceModel.findOne({
+    guildId,
+  });
+
+  const channel = guildInstance.channels.find((c) => c.channelId === channelId);
+
+  const members = channel.members.map(({ id, username, avatarUrl }) => ({
+    id,
+    username,
+    avatarUrl,
+  }));
+
+  return res.json(members);
+}
+
 async function CreateGuildInstance(guildInstance: IGuildInstance) {
   const { guildId } = guildInstance;
 
@@ -326,6 +363,7 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 
 export {
   CreateGuildInstance,
+  GetChannelMembers,
   SaveScore,
   GetHints,
   handleDeleteYesterdayMessages,
