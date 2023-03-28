@@ -18,9 +18,10 @@ export interface IMessage {
   id: string;
   author: IAuthor;
   content: string;
+  type: number;
   mentions: IMention[];
   attachments: IAttachments[];
-  sticker_items: [];
+  sticker_items?: [];
   timestamp: string;
 }
 
@@ -31,6 +32,7 @@ export interface IAttachments {
 export interface IAuthor {
   id: string;
   username: string;
+  bot: boolean;
 }
 
 export interface IMention {

@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
-import Axios from "axios";
-import MessageInstance from "../models/MessageModel";
-import DiscordleInstanceModel from "../models/DiscordleInstanceModel";
-import ScoreModel from "../models/ScoreModel";
-import baseUrl from "./baseUrl";
+import { request } from "undici";
+import MessageInstance from "../models/MessageInstance";
+import GuildInstanceModel from "../models/GuildInstanceModel";
+import ScoreModel from "../models/ScoreInstance";
 import moment from "moment";
 import { IScoreInstance } from "interfaces/IScore";
 import {
@@ -15,8 +14,10 @@ import {
 } from "../interfaces/IMessage";
 import {
   ICreateDiscordleInstanceModel,
-  ICreateDiscordleInstancePost,
-} from "interfaces/IDiscordleInstance";
+  IGuildInstance,
+} from "interfaces/IGuildInstance";
+
+const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
 //#region GetDiscordMessages
 const range = (start: number, end: number): number =>
@@ -52,11 +53,11 @@ async function handleGetPreviousMessageArray(
   instanceUrl: string,
   authToken: string
 ) {
-  const result = await Axios.get(`${instanceUrl}&before=${id}`, {
+  const result = await request(`${instanceUrl}&before=${id}`, {
     headers: { authorization: authToken },
-  }).then(({ data }) => data);
+  });
 
-  const messages: IMessage[] = result;
+  const messages: IMessage[] = await result.body.json();
 
   return messages;
 }
@@ -76,6 +77,8 @@ async function getLastElementRecursive(
   const hasOnlyOneMention = message.content.split("<@").length - 1 === 1;
   const notShortMessage = message.content.length > 5;
   const allEqualCharacters = verifyMessage(message.content);
+  const isntBot = !message.author.bot;
+  const isTextMessage = message.type === 0 && message.content !== "";
 
   const isValidMessage =
     rangeNumber == 0 &&
@@ -83,6 +86,8 @@ async function getLastElementRecursive(
     !isServerEmoji &&
     !hasOnlyOneMention &&
     !allEqualCharacters &&
+    isntBot &&
+    isTextMessage &&
     notShortMessage;
 
   if (isValidMessage) {
@@ -112,11 +117,11 @@ async function handleDeleteYesterdayMessages(channelId: string) {
 }
 
 async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
-  const result = await Axios.get(`${instanceUrl}`, {
+  const result = await request(`${instanceUrl}`, {
     headers: { authorization: authToken },
-  }).then(({ data }) => data);
+  });
 
-  const messages: IMessage[] = result;
+  const messages: IMessage[] = await result.body.json();
 
   const times: number = range(1, 5);
 
@@ -131,23 +136,23 @@ async function ChooseDiscordMessage(instanceUrl: string, authToken: string) {
 }
 
 async function GetServerName(channelId: string, authToken: string) {
-  const channelResult = await Axios.get(
+  const channelResult = await request(
     `https://discord.com/api/channels/${channelId}`,
     {
       headers: { authorization: authToken },
     }
-  ).then(({ data }) => data);
+  );
 
-  const channel: IChannel = channelResult;
+  const channel: IChannel = await channelResult.body.json();
 
-  const serverResult = await Axios.get(
+  const serverResult = await request(
     `https://discord.com/api/guilds/${channel.guild_id}`,
     {
       headers: { authorization: authToken },
     }
-  ).then(({ data }) => data);
+  );
 
-  const server: IServer = serverResult;
+  const server: IServer = await serverResult.body.json();
 
   return `${server.name} - #${channel.name}`;
 }
@@ -155,10 +160,7 @@ async function GetServerName(channelId: string, authToken: string) {
 async function handleLoopForChooseFiveMessages(channelId: string) {
   const totalMessagesPerDay = 5;
 
-  const discordleInstance: ICreateDiscordleInstanceModel =
-    await DiscordleInstanceModel.findOne({ channelId });
-
-  const { instanceUrl, authToken } = discordleInstance;
+  const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=100`;
 
   const choosedMessages: IGetDiscordMessagesResponse[] = [];
 
@@ -191,15 +193,15 @@ async function GetHints(req: Request, res: Response) {
   const { id, channelId } = req.query;
 
   const discordleInstance: ICreateDiscordleInstanceModel =
-    await DiscordleInstanceModel.findOne({ channelId });
+    await GuildInstanceModel.findOne({ channelId });
 
   const { instanceUrl, authToken } = discordleInstance;
 
-  const result = await Axios.get(`${instanceUrl}&around=${id}`, {
+  const result = await request(`${instanceUrl}&around=${id}`, {
     headers: { authorization: authToken },
-  }).then(({ data }) => data);
+  });
 
-  const messages: IMessage[] = result;
+  const messages: IMessage[] = await result.body.json();
 
   const messageIndex = messages.findIndex((x) => x.id === id);
 
@@ -317,38 +319,39 @@ function updateMessagesAtMidnight(channelId: string) {
 
 //#region DiscordleInstance
 
+async function GetInstanceChannels(req: Request, res: Response) {
+  const { guildId } = req.query;
+
+  const guildInstance = await GuildInstanceModel.findOne({ guildId }).select(
+    "channels"
+  );
+
+  return res.json(guildInstance);
+}
+
+async function CreateGuildInstance(guildInstance: IGuildInstance) {
+  const { guildId } = guildInstance;
+
+  const alreadyExists = await GuildInstanceModel.findOne({ guildId });
+
+  if (alreadyExists !== null) return;
+
+  await GuildInstanceModel.create(guildInstance);
+}
+
 async function CreateDiscordleInstance(req: Request, res: Response) {
-  const body: ICreateDiscordleInstancePost = req.body;
+  const { channelId } = req.body;
 
-  const { channelId } = body;
+  await handleVerifyIfDbIsEmpty(channelId.toString());
 
-  const alreadyExists = await DiscordleInstanceModel.findOne({ channelId });
+  updateMessagesAtMidnight(channelId.toString());
 
-  if (alreadyExists)
-    return res.json({
-      errorMessage:
-        "Discordle já criado para o ID Canal de texto específicado.",
-    });
-
-  const instanceUrl = baseUrl(body.channelId);
-
-  const dto: ICreateDiscordleInstanceModel = {
-    ...body,
-    instanceUrl,
-  };
-
-  await DiscordleInstanceModel.create(dto);
-
-  await handleVerifyIfDbIsEmpty(channelId);
-
-  updateMessagesAtMidnight(channelId);
-
-  return res.json().status(200);
+  return res.status(200);
 }
 //#endregion
 
 export {
-  CreateDiscordleInstance,
+  CreateGuildInstance,
   SaveScore,
   GetHints,
   handleDeleteYesterdayMessages,
@@ -357,4 +360,6 @@ export {
   handleLoopForChooseFiveMessages,
   GetTimer,
   VerifyAlreadyAwnsered,
+  GetInstanceChannels,
+  CreateDiscordleInstance,
 };

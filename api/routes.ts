@@ -7,7 +7,8 @@ router.get("/getHints", Controller.GetHints);
 router.get("/getChoosedMessages", Controller.GetChoosedMessages);
 router.get("/getTimer", Controller.GetTimer);
 router.get("/verifyAlreadyAwnsered", Controller.VerifyAlreadyAwnsered);
-router.post("/saveScore", Controller.SaveScore);
+router.get("/getInstanceChannels", Controller.GetInstanceChannels);
 router.post("/createDiscordleInstance", Controller.CreateDiscordleInstance);
+router.post("/saveScore", Controller.SaveScore);
 
 export default router;
