@@ -37,6 +37,7 @@ export interface IMention {
 
 export interface IChannel {
   name: string;
+  id: string;
   guild_id: string;
 }
 

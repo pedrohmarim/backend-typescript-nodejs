@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
-import { request } from "undici";
+import { request, FormData } from "undici";
 import MessageInstance from "../models/MessageInstance";
 import GuildInstanceModel from "../models/GuildInstanceModel";
 import ScoreModel from "../models/ScoreInstance";
 import moment from "moment";
 import { IAwnser, IScoreInstance } from "interfaces/IScore";
-import { IGuildInstance } from "interfaces/IGuildInstance";
+import { IGuildInstance, IMember } from "interfaces/IGuildInstance";
 import {
   IChannel,
   IGetDiscordMessagesResponse,
@@ -230,6 +230,49 @@ async function VerifyAlreadyAwnsered(req: Request, res: Response) {
   else res.json([]);
 }
 
+async function SendScoreMessageOnDailyDiscordle(
+  guildId: string,
+  username: string,
+  scoreDetails: IAwnser[]
+) {
+  const url = `https://discord.com/api/v10/guilds/${guildId}/channels`;
+
+  const result = await request(url, {
+    headers: { authorization: authToken },
+  });
+
+  const channels: IChannel[] = await result.body.json();
+
+  const dailyDiscordleChannelId = channels.find(
+    ({ name }) => name === "daily-discordle"
+  ).id;
+
+  const body = new FormData();
+
+  let scoreEmojis = "";
+
+  const totalScore = scoreDetails.reduce((accumulator, curValue) => {
+    return accumulator + curValue.score;
+  }, 0);
+
+  scoreDetails.forEach(({ success }) => {
+    scoreEmojis += success ? ":white_check_mark: " : ":x: ";
+  });
+
+  const content = `${username} respondeu o Discordle diário! (${new Date().toLocaleDateString()}) \n\n Pontuação: ${totalScore} \n\n   **1**     **2**     **3**    **4**     **5** \n ${scoreEmojis} \n \n Responda também! \n http://localhost:3000/game`;
+
+  body.append("content", content);
+
+  await request(
+    `https://discord.com/api/v10/channels/${dailyDiscordleChannelId}/messages`,
+    {
+      method: "POST",
+      body,
+      headers: { authorization: authToken },
+    }
+  );
+}
+
 async function SaveScore(req: Request, res: Response) {
   const { scores, channelId, guildId } = req.body;
 
@@ -253,6 +296,12 @@ async function SaveScore(req: Request, res: Response) {
   const options = { upsert: true };
 
   await ScoreModel.updateOne(query, update, options);
+
+  await SendScoreMessageOnDailyDiscordle(
+    guildId,
+    member.username,
+    scores.scoreDetails
+  );
 
   return res.json().status(200);
 }
