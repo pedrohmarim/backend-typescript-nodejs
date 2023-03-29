@@ -232,6 +232,7 @@ async function VerifyAlreadyAwnsered(req: Request, res: Response) {
 
 async function SendScoreMessageOnDailyDiscordle(
   guildId: string,
+  channelId: string,
   username: string,
   scoreDetails: IAwnser[]
 ) {
@@ -259,7 +260,7 @@ async function SendScoreMessageOnDailyDiscordle(
     scoreEmojis += success ? ":white_check_mark: " : ":x: ";
   });
 
-  const content = `${username} respondeu o Discordle diário! (${new Date().toLocaleDateString()}) \n\n Pontuação: ${totalScore} \n\n   **1**     **2**     **3**    **4**     **5** \n ${scoreEmojis} \n \n Responda também! \n http://localhost:3000/game`;
+  const content = `${username} respondeu o Discordle diário! (${new Date().toLocaleDateString()}) \n\n Pontuação: ${totalScore} \n\n   **1**     **2**     **3**    **4**     **5** \n ${scoreEmojis} \n \n Responda você também! \n http://localhost:3000/game?channelId=${channelId}&guildId=${guildId}`;
 
   body.append("content", content);
 
@@ -299,6 +300,7 @@ async function SaveScore(req: Request, res: Response) {
 
   await SendScoreMessageOnDailyDiscordle(
     guildId,
+    channelId,
     member.username,
     scores.scoreDetails
   );
