@@ -193,7 +193,7 @@ async function GetChoosedMessages(req: Request, res: Response) {
 
   const messageInstance: IMessageInstance = await MessageInstance.findOne({
     channelId,
-  });
+  }).select("messages channelId serverName -_id");
 
   return res.json(messageInstance);
 }
