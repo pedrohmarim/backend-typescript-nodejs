@@ -1,5 +1,10 @@
 import { CreateGuildInstance } from "./controllers/DiscordMessagesController";
-import { ChannelType, Client, GatewayIntentBits } from "discord.js";
+import {
+  ChannelType,
+  Client,
+  GatewayIntentBits,
+  PermissionFlagsBits,
+} from "discord.js";
 import {
   IGuildInstance,
   IInstanceChannels,
@@ -12,7 +17,6 @@ const DiscordBotConnection = async () => {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildPresences,
-      GatewayIntentBits.MessageContent,
     ],
   });
 
@@ -48,10 +52,32 @@ const DiscordBotConnection = async () => {
 
     await CreateGuildInstance(guildInstance);
 
-    guild.channels.create({
-      name: "Daily Discordle",
-      type: ChannelType.GuildText,
-    });
+    guild.channels
+      .create({
+        name: "Daily Discordle",
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone,
+            allow: [PermissionFlagsBits.ViewChannel],
+            deny: [
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.CreateInstantInvite,
+            ],
+          },
+          {
+            id: "1089918362311733378", //bot id
+            allow: [PermissionFlagsBits.SendMessages],
+          },
+          {
+            id: guild.ownerId,
+            allow: [PermissionFlagsBits.SendMessages],
+          },
+        ],
+      })
+      .then(async (channel) => {
+        await channel.send("Boas vindas!");
+      });
   });
 
   client.login(process.env.BOT_TOKEN);

@@ -5,6 +5,7 @@ import GuildInstanceModel from "../models/GuildInstanceModel";
 import ScoreModel from "../models/ScoreInstance";
 import moment from "moment";
 import { IAwnser, IScoreInstance } from "interfaces/IScore";
+import { IGuildInstance } from "interfaces/IGuildInstance";
 import {
   IChannel,
   IGetDiscordMessagesResponse,
@@ -12,7 +13,6 @@ import {
   IMessageInstance,
   IServer,
 } from "../interfaces/IMessage";
-import { IGuildInstance } from "interfaces/IGuildInstance";
 
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
@@ -359,6 +359,7 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 
   return res.json().status(200);
 }
+
 //#endregion
 
 export {
