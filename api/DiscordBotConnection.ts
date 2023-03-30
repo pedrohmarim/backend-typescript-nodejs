@@ -51,6 +51,12 @@ const DiscordBotConnection = async () => {
 
     await CreateGuildInstance(guildInstance);
 
+    guild.channels.cache
+      .filter(
+        ({ name, parentId }) => name === "daily-discordle" && parentId === null
+      )
+      .forEach((channel) => channel.delete());
+
     guild.channels
       .create({
         name: "Daily Discordle",
