@@ -23,8 +23,27 @@ const DiscordBotConnection = async () => {
   client.on("guildCreate", async (guild) => {
     const channels = await guild.channels.fetch();
 
+    channels
+      .filter(
+        ({ name, parentId }) => name === "daily-discordle" && parentId === null
+      )
+      .forEach((channel) => channel.delete());
+
+    console.log(JSON.stringify(channels));
+
     const mappedChannelsInstance = channels
-      .filter((channel) => channel.type === ChannelType.GuildText)
+      .filter(
+        (channel) =>
+          channel.type === ChannelType.GuildText &&
+          channel.name !== "daily-discordle"
+        // &&
+        // channel.messages.fetch({ limit: 5 }).then(
+        //   (messages) => console.log(messages.size)
+
+        //   messages.size === 5 &&
+        //   !messages.some((message) => message.author.bot)
+        // )
+      )
       .map((channel) => {
         const members: IMember[] = channel.members
           .filter((x) => !x.user.bot)
@@ -50,12 +69,6 @@ const DiscordBotConnection = async () => {
     };
 
     await CreateGuildInstance(guildInstance);
-
-    guild.channels.cache
-      .filter(
-        ({ name, parentId }) => name === "daily-discordle" && parentId === null
-      )
-      .forEach((channel) => channel.delete());
 
     guild.channels
       .create({
