@@ -11,10 +11,6 @@ const GuildInstance = new Schema<IGuildInstance>(
       type: String,
       required: true,
     },
-    guildName: {
-      type: String,
-      required: true,
-    },
     channels: [
       {
         type: new Schema<IInstanceChannels>({

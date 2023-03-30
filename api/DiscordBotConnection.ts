@@ -46,7 +46,6 @@ const DiscordBotConnection = async () => {
 
     const guildInstance: IGuildInstance = {
       guildId: guild.id,
-      guildName: guild.name,
       channels: mappedChannelsInstance,
     };
 
@@ -76,8 +75,7 @@ const DiscordBotConnection = async () => {
         ],
       })
       .then(async (channel) => {
-        const content =
-          "Saudações! Eu sou o bot do Discordle. \n\n Serei responsável por informá-los sobre cada **atualização** das pontuações diárias. \n\n Estarei a disposição para qualquer ajuda.  :robot:";
+        const content = `Saudações! Eu sou o bot do Discordle. \n\n Serei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\n Estarei a disposição para qualquer ajuda.  :robot:`;
 
         await channel.send(content);
       });

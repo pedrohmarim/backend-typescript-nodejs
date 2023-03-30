@@ -1,6 +1,5 @@
 export interface IGuildInstance {
   guildId: string;
-  guildName: string;
   channels: IInstanceChannels[];
 }
 

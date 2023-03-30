@@ -2,6 +2,7 @@ export interface IMessageInstance {
   messages: IGetDiscordMessagesResponse[];
   channelId: string;
   serverName: string;
+  serverIcon: string;
 }
 
 export interface IGetDiscordMessagesResponse {
@@ -41,6 +42,8 @@ export interface IChannel {
   guild_id: string;
 }
 
-export interface IServer {
+export interface IGuild {
   name: string;
+  id: string;
+  icon: string;
 }

@@ -5,13 +5,13 @@ import GuildInstanceModel from "../models/GuildInstanceModel";
 import ScoreModel from "../models/ScoreInstance";
 import moment from "moment";
 import { IAwnser, IScoreInstance } from "interfaces/IScore";
-import { IGuildInstance, IMember } from "interfaces/IGuildInstance";
+import { IGuildInstance } from "interfaces/IGuildInstance";
 import {
   IChannel,
   IGetDiscordMessagesResponse,
   IMessage,
   IMessageInstance,
-  IServer,
+  IGuild,
 } from "../interfaces/IMessage";
 
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
@@ -102,16 +102,19 @@ async function GetServerName(channelId: string, authToken: string) {
 
   const channel: IChannel = await channelResult.body.json();
 
-  const serverResult = await request(
+  const guildResult = await request(
     `https://discord.com/api/guilds/${channel.guild_id}`,
     {
       headers: { authorization: authToken },
     }
   );
 
-  const server: IServer = await serverResult.body.json();
+  const guild: IGuild = await guildResult.body.json();
 
-  return `${server.name} - #${channel.name}`;
+  return {
+    serverName: `${guild.name} - #${channel.name}`,
+    serverIcon: `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp`,
+  };
 }
 
 async function handleLoopForChooseFiveMessages(channelId: string) {
@@ -143,11 +146,14 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     choosedMessages.push(choosedMessage);
   }
 
-  const serverName = await GetServerName(channelId, authToken);
+  const serverNameAndIcon = await GetServerName(channelId, authToken);
+
+  const { serverIcon, serverName } = serverNameAndIcon;
 
   const messageInstance: IMessageInstance = {
     messages: choosedMessages,
     serverName,
+    serverIcon,
     channelId,
   };
 
@@ -156,13 +162,6 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
   return;
 }
 
-async function handleVerifyIfDbIsEmpty(channelId: string) {
-  const hasMessage = await MessageInstance.find({ channelId });
-
-  if (!hasMessage.length) await handleLoopForChooseFiveMessages(channelId);
-
-  return;
-}
 //#endregion GetDiscordMessages
 
 //#region GetHints
@@ -193,7 +192,9 @@ async function GetChoosedMessages(req: Request, res: Response) {
 
   const messageInstance: IMessageInstance = await MessageInstance.findOne({
     channelId,
-  }).select("messages channelId serverName -_id");
+  })
+    .select("messages channelId serverName serverIcon -_id")
+    .lean();
 
   return res.json(messageInstance);
 }
@@ -205,7 +206,7 @@ async function getAwnser(userId: string, channelId: string) {
 
   const scoreInstance: IScoreInstance = await ScoreModel.findOne({
     channelId,
-  });
+  }).lean();
 
   if (!scoreInstance) return;
 
@@ -230,12 +231,7 @@ async function VerifyAlreadyAwnsered(req: Request, res: Response) {
   else res.json([]);
 }
 
-async function SendScoreMessageOnDailyDiscordle(
-  guildId: string,
-  channelId: string,
-  userId: string,
-  scoreDetails: IAwnser[]
-) {
+async function findDailyDiscordleChannelId(guildId: string) {
   const url = `https://discord.com/api/v10/guilds/${guildId}/channels`;
 
   const result = await request(url, {
@@ -247,6 +243,17 @@ async function SendScoreMessageOnDailyDiscordle(
   const dailyDiscordleChannelId = channels.find(
     ({ name }) => name === "daily-discordle"
   ).id;
+
+  return dailyDiscordleChannelId;
+}
+
+async function SendScoreMessageOnDailyDiscordle(
+  guildId: string,
+  channelId: string,
+  userId: string,
+  scoreDetails: IAwnser[]
+) {
+  const dailyDiscordleChannelId = await findDailyDiscordleChannelId(guildId);
 
   const body = new FormData();
 
@@ -288,7 +295,7 @@ async function SaveScore(req: Request, res: Response) {
 
   const guildInstance = await GuildInstanceModel.findOne({
     guildId,
-  });
+  }).lean();
 
   const channel = guildInstance.channels.find((c) => c.channelId === channelId);
 
@@ -368,9 +375,9 @@ function updateMessagesAtMidnight(channelId: string) {
 async function GetInstanceChannels(req: Request, res: Response) {
   const { guildId } = req.query;
 
-  const guildInstance = await GuildInstanceModel.findOne({ guildId }).select(
-    "channels"
-  );
+  const guildInstance = await GuildInstanceModel.findOne({ guildId })
+    .select("channels")
+    .lean();
 
   return res.json(guildInstance);
 }
@@ -380,7 +387,7 @@ async function GetChannelMembers(req: Request, res: Response) {
 
   const guildInstance = await GuildInstanceModel.findOne({
     guildId,
-  });
+  }).lean();
 
   const channel = guildInstance.channels.find((c) => c.channelId === channelId);
 
@@ -396,19 +403,52 @@ async function GetChannelMembers(req: Request, res: Response) {
 async function CreateGuildInstance(guildInstance: IGuildInstance) {
   const { guildId } = guildInstance;
 
-  const alreadyExists = await GuildInstanceModel.findOne({ guildId });
+  const alreadyExists = await GuildInstanceModel.findOne({ guildId }).lean();
 
   if (alreadyExists !== null) return;
 
   await GuildInstanceModel.create(guildInstance);
 }
 
-async function CreateDiscordleInstance(req: Request, res: Response) {
-  const { channelId } = req.body;
+async function sendCreatedInstanceMessage(channelId: string, guildId: string) {
+  const dailyDiscordleChannelId = await findDailyDiscordleChannelId(guildId);
 
-  await handleVerifyIfDbIsEmpty(channelId.toString());
+  const url = `https://discord.com/api/v10/guilds/${guildId}/channels`;
+
+  const result = await request(url, {
+    headers: { authorization: authToken },
+  });
+
+  const channels: IChannel[] = await result.body.json();
+
+  const channelName = channels.find(({ id }) => id === channelId).name;
+
+  const body = new FormData();
+
+  const content = `A instância do canal **#${channelName}** foi criada! :white_check_mark: \n\n Agora é só começar a jogar! \n\n http://localhost:3000/chooseProfile?channelId=${channelId}&guildId=${guildId} \n\n Até mais.  :robot:`;
+
+  body.append("content", content);
+
+  await request(
+    `https://discord.com/api/v10/channels/${dailyDiscordleChannelId}/messages`,
+    {
+      method: "POST",
+      body,
+      headers: { authorization: authToken },
+    }
+  );
+}
+
+async function CreateDiscordleInstance(req: Request, res: Response) {
+  const { channelId, guildId } = req.body;
+
+  const messages = await MessageInstance.find({ channelId });
+
+  if (!messages.length) await handleLoopForChooseFiveMessages(channelId);
 
   updateMessagesAtMidnight(channelId.toString());
+
+  await sendCreatedInstanceMessage(channelId.toString(), guildId.toString());
 
   return res.json().status(200);
 }
@@ -422,7 +462,6 @@ export {
   GetHints,
   handleDeleteYesterdayMessages,
   GetChoosedMessages,
-  handleVerifyIfDbIsEmpty,
   handleLoopForChooseFiveMessages,
   GetTimer,
   VerifyAlreadyAwnsered,
