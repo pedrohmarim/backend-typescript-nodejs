@@ -29,8 +29,6 @@ const DiscordBotConnection = async () => {
       )
       .forEach((channel) => channel.delete());
 
-    console.log(JSON.stringify(channels));
-
     const mappedChannelsInstance = channels
       .filter(
         (channel) =>
