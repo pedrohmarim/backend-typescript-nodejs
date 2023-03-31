@@ -1,10 +1,15 @@
 import { Request, Response } from "express";
 import { request, FormData } from "undici";
-import MessageInstance from "../models/MessageInstance";
+import MessageInstanceModel from "../models/MessageInstanceModel";
 import GuildInstanceModel from "../models/GuildInstanceModel";
-import ScoreModel from "../models/ScoreInstance";
+import ScoreInstanceModel from "../models/ScoreInstanceModel";
 import moment from "moment";
-import { IAwnser, IScoreInstance } from "interfaces/IScore";
+import {
+  IAwnser,
+  IRankingTableData,
+  IScoreInstance,
+  IUserScoreDetail,
+} from "interfaces/IScore";
 import { IGuildInstance } from "interfaces/IGuildInstance";
 import {
   IChannel,
@@ -89,7 +94,7 @@ function ChooseFiveMessages(messages: IMessage[]): IGetDiscordMessagesResponse {
 }
 
 async function handleDeleteYesterdayMessages(channelId: string) {
-  await MessageInstance.findOneAndDelete({ channelId });
+  await MessageInstanceModel.findOneAndDelete({ channelId });
 }
 
 async function GetServerName(channelId: string, authToken: string) {
@@ -157,7 +162,7 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     channelId,
   };
 
-  await MessageInstance.create(messageInstance);
+  await MessageInstanceModel.create(messageInstance);
 
   return;
 }
@@ -189,7 +194,7 @@ async function GetHints(req: Request, res: Response) {
 async function GetChoosedMessages(req: Request, res: Response) {
   const { channelId } = req.query;
 
-  const messageInstance: IMessageInstance = await MessageInstance.findOne({
+  const messageInstance: IMessageInstance = await MessageInstanceModel.findOne({
     channelId,
   })
     .select("messages channelId serverName serverIcon -_id")
@@ -203,7 +208,7 @@ async function GetChoosedMessages(req: Request, res: Response) {
 async function getAwnser(userId: string, channelId: string) {
   const currentDate = new Date().toLocaleDateString();
 
-  const scoreInstance: IScoreInstance = await ScoreModel.findOne({
+  const scoreInstance: IScoreInstance = await ScoreInstanceModel.findOne({
     channelId,
   }).lean();
 
@@ -304,7 +309,7 @@ async function SaveScore(req: Request, res: Response) {
   const update = { member, $push: { scores: { ...scores, member } } };
   const options = { upsert: true };
 
-  await ScoreModel.updateOne(query, update, options);
+  await ScoreInstanceModel.updateOne(query, update, options);
 
   await SendScoreMessageOnDailyDiscordle(
     guildId,
@@ -441,7 +446,7 @@ async function sendCreatedInstanceMessage(channelId: string, guildId: string) {
 async function CreateDiscordleInstance(req: Request, res: Response) {
   const { channelId, guildId } = req.body;
 
-  const messages = await MessageInstance.find({ channelId });
+  const messages = await MessageInstanceModel.find({ channelId });
 
   if (!messages.length) await handleLoopForChooseFiveMessages(channelId);
 
@@ -454,7 +459,93 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 
 //#endregion
 
+//#region GetDiscordleHistory
+
+async function GetDiscordleHistory(req: Request, res: Response) {
+  const { channelId } = req.query;
+
+  const scoreInstance: IScoreInstance = await ScoreInstanceModel.findOne({
+    channelId,
+  }).lean();
+
+  const membersData: Record<string, IRankingTableData> =
+    scoreInstance.scores.reduce(
+      (acc: Record<string, IRankingTableData>, { member, scoreDetails }) => {
+        const totalScore = scoreDetails.reduce((accumulator, curValue) => {
+          return accumulator + curValue.score;
+        }, 0);
+
+        if (acc[member.id]) acc[member.id].totalScore += totalScore;
+        else {
+          acc[member.id] = {
+            member: {
+              avatarUrl: member.avatarUrl,
+              username: member.username,
+              userId: member.id,
+            },
+            totalScore,
+            key: 0,
+          };
+        }
+
+        return acc;
+      },
+      {}
+    );
+
+  const rankingTableData: IRankingTableData[] = Object.values(membersData)
+    .sort((a, b) => b.totalScore - a.totalScore)
+    .map((data, index, array) => {
+      switch (index) {
+        case 0:
+          data.key = 1;
+          break;
+        case 1:
+          data.key = 2;
+          break;
+        case 2:
+          data.key = 3;
+          break;
+        default:
+          data.key = index + 1;
+          break;
+      }
+
+      // tratamento para empates
+      if (data.totalScore === array[index - 1]?.totalScore) {
+        data.key = array[index - 1].key;
+      }
+
+      return data;
+    });
+
+  return res.json(rankingTableData);
+}
+
+async function GetUserScoreDetail(req: Request, res: Response) {
+  const { userId, channelId } = req.query;
+
+  const scoreInstance: IScoreInstance = await ScoreInstanceModel.findOne({
+    channelId,
+  }).lean();
+
+  const result: IUserScoreDetail[] = scoreInstance.scores
+    .filter(({ member }) => member.id === userId)
+    .map(({ date, scoreDetails }) => {
+      return {
+        date,
+        scoreDetails,
+      } as IUserScoreDetail;
+    });
+
+  return res.json(result);
+}
+
+//#endregion
+
 export {
+  GetUserScoreDetail,
+  GetDiscordleHistory,
   CreateGuildInstance,
   GetChannelMembers,
   SaveScore,

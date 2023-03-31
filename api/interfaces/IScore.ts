@@ -16,3 +16,18 @@ export interface IAwnser {
   success: boolean | undefined;
   tabKey: number;
 }
+
+export interface IRankingTableData {
+  key: number;
+  member: {
+    avatarUrl: string;
+    username: string;
+    userId: string;
+  };
+  totalScore: number;
+}
+
+export interface IUserScoreDetail {
+  scoreDetails: IAwnser[];
+  date: string;
+}
