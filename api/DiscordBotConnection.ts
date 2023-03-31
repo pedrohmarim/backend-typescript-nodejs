@@ -29,19 +29,24 @@ const DiscordBotConnection = async () => {
       )
       .forEach((channel) => channel.delete());
 
-    const mappedChannelsInstance = channels
-      .filter(
-        (channel) =>
+    const filteredChannels = await Promise.all(
+      channels.map(async (channel) => {
+        if (
           channel.type === ChannelType.GuildText &&
           channel.name !== "daily-discordle"
-        // &&
-        // channel.messages.fetch({ limit: 5 }).then(
-        //   (messages) => console.log(messages.size)
+        ) {
+          const messages = await channel.messages.fetch({ limit: 5 });
+          const hasBotMessages = messages.some((message) => message.author.bot);
 
-        //   messages.size === 5 &&
-        //   !messages.some((message) => message.author.bot)
-        // )
-      )
+          if (messages.size === 5 && !hasBotMessages) return channel;
+        }
+
+        return null;
+      })
+    );
+
+    const mappedChannelsInstance = filteredChannels
+      .filter((channel) => channel !== null)
       .map((channel) => {
         const members: IMember[] = channel.members
           .filter((x) => !x.user.bot)
