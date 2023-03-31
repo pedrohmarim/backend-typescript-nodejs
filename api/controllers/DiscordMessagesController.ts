@@ -181,8 +181,7 @@ async function GetHints(req: Request, res: Response) {
   const previousPosition = messages[messageIndex - 1];
   const consecutivePosition = messages[messageIndex + 1];
 
-  if (previousPosition && consecutivePosition)
-    return res.json({ previousPosition, consecutivePosition });
+  return res.json({ previousPosition, consecutivePosition });
 }
 //#endregion GetHints
 
