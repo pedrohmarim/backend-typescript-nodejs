@@ -6,6 +6,7 @@ export interface IScoreInstance {
 }
 
 export interface IPostSaveScore {
+  _id: string;
   scoreDetails: IAwnser[];
   date: string;
   member: IMember;
@@ -18,7 +19,8 @@ export interface IAwnser {
 }
 
 export interface IRankingTableData {
-  key: number;
+  rowId: string;
+  position: number;
   member: {
     avatarUrl: string;
     username: string;
@@ -28,6 +30,7 @@ export interface IRankingTableData {
 }
 
 export interface IUserScoreDetail {
+  rowId: string;
   scoreDetails: IAwnser[];
   date: string;
 }
