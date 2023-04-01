@@ -3,7 +3,7 @@ import { request, FormData } from "undici";
 import MessageInstanceModel from "../models/MessageInstanceModel";
 import GuildInstanceModel from "../models/GuildInstanceModel";
 import ScoreInstanceModel from "../models/ScoreInstanceModel";
-import moment from "moment";
+import moment from "moment-timezone";
 import {
   IAwnser,
   IRankingTableData,
@@ -382,14 +382,13 @@ function GetTimer(req: Request, res: Response) {
 }
 
 function updateMessagesAtMidnight(channelId: string, guildId: string) {
-  const now = moment();
-  const formattedDate = now.locale("pt-br");
+  const now = moment.tz("America/Sao_Paulo");
 
   const timeUntilMidnight = moment.duration({
-    hours: 23 - formattedDate.hours(),
-    minutes: 59 - formattedDate.minutes(),
-    seconds: 59 - formattedDate.seconds(),
-    milliseconds: 1000 - formattedDate.milliseconds(),
+    hours: 23 - now.hours(),
+    minutes: 59 - now.minutes(),
+    seconds: 59 - now.seconds(),
+    milliseconds: 1000 - now.milliseconds(),
   });
 
   let timeLeft = moment
@@ -409,10 +408,10 @@ function updateMessagesAtMidnight(channelId: string, guildId: string) {
 
   const msUntilMidnight = moment
     .duration({
-      hours: 23 - formattedDate.hours(),
-      minutes: 59 - formattedDate.minutes(),
-      seconds: 59 - formattedDate.seconds(),
-      milliseconds: 1000 - formattedDate.milliseconds(),
+      hours: 23 - now.hours(),
+      minutes: 59 - now.minutes(),
+      seconds: 59 - now.seconds(),
+      milliseconds: 1000 - now.milliseconds(),
     })
     .asMilliseconds();
 
