@@ -215,7 +215,7 @@ async function GetChoosedMessages(req: Request, res: Response) {
 
 //#region SaveScore
 async function getAwnser(userId: string, channelId: string) {
-  const currentDate = new Date().toLocaleDateString();
+  const currentDate = new Date().toLocaleDateString("pt-br");
 
   const scoreInstance: IScoreInstance = await ScoreInstanceModel.findOne({
     channelId,
@@ -280,7 +280,7 @@ async function SendScoreMessageOnDailyDiscordle(
     scoreEmojis += success ? ":white_check_mark: " : ":x: ";
   });
 
-  const today = new Date().toLocaleDateString();
+  const today = new Date().toLocaleDateString("pt-br");
 
   const content = `<@${userId}> respondeu o Discordle diário! (${today}) \n\n Pontuação: ${totalScore} \n\n   **1**     **2**     **3**    **4**     **5** \n ${scoreEmojis} \n \n Responda você também! \n https://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId}`;
 
@@ -357,7 +357,7 @@ async function sendNewDiscordleMessagesAvaible(
 
   const channelName = await GetDiscordleChannelName(channelId, guildId);
 
-  const today = new Date().toLocaleDateString();
+  const today = new Date().toLocaleDateString("pt-br");
 
   const content = `:warning:  AVISO!  :warning: \n\n NOVO DISCORDLE DE **#${channelName}** JÁ DISPONÍVEL!!! (${today}) \n\n Responda agora mesmo! \n\n https://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId} \n\n Até mais.  :robot:`;
 
@@ -383,12 +383,13 @@ function GetTimer(req: Request, res: Response) {
 
 function updateMessagesAtMidnight(channelId: string, guildId: string) {
   const now = moment();
+  const formattedDate = now.locale("pt-br");
 
   const timeUntilMidnight = moment.duration({
-    hours: 23 - now.hours(),
-    minutes: 59 - now.minutes(),
-    seconds: 59 - now.seconds(),
-    milliseconds: 1000 - now.milliseconds(),
+    hours: 23 - formattedDate.hours(),
+    minutes: 59 - formattedDate.minutes(),
+    seconds: 59 - formattedDate.seconds(),
+    milliseconds: 1000 - formattedDate.milliseconds(),
   });
 
   let timeLeft = moment
@@ -408,10 +409,10 @@ function updateMessagesAtMidnight(channelId: string, guildId: string) {
 
   const msUntilMidnight = moment
     .duration({
-      hours: 23 - now.hours(),
-      minutes: 59 - now.minutes(),
-      seconds: 59 - now.seconds(),
-      milliseconds: 1000 - now.milliseconds(),
+      hours: 23 - formattedDate.hours(),
+      minutes: 59 - formattedDate.minutes(),
+      seconds: 59 - formattedDate.seconds(),
+      milliseconds: 1000 - formattedDate.milliseconds(),
     })
     .asMilliseconds();
 
