@@ -46,7 +46,7 @@ const MessageInstance = new Schema<IMessageInstance>(
             }),
             content: {
               type: String,
-              required: true,
+              required: false,
             },
             mentions: {
               type: [

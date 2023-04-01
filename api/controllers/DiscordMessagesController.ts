@@ -64,35 +64,6 @@ async function handleGetPreviousMessageArray(
   return messages;
 }
 
-function ChooseFiveMessages(messages: IMessage[]): IGetDiscordMessagesResponse {
-  const randomPosition = range(0, messages.length - 1);
-
-  const message: IMessage = messages[randomPosition];
-
-  const isSticker = message.sticker_items?.length;
-  const isServerEmoji = message.content.includes("<:");
-  const hasOnlyOneMention = message.content.split("<@").length - 1 === 1;
-  const notShortMessage = message.content.length > 5;
-  const allEqualCharacters = verifyMessage(message.content);
-  const isntBot = !message.author.bot;
-  const isTextMessage = message.type === 0 && message.content !== "";
-
-  const isValidMessage =
-    !isSticker &&
-    !isServerEmoji &&
-    !hasOnlyOneMention &&
-    !allEqualCharacters &&
-    isntBot &&
-    isTextMessage &&
-    notShortMessage;
-
-  if (isValidMessage) {
-    const authors = handleDistinctAuthorArray(messages);
-
-    return { message, authors };
-  } else return ChooseFiveMessages(messages);
-}
-
 async function handleDeleteYesterdayMessages(channelId: string) {
   await MessageInstanceModel.findOneAndDelete({ channelId });
 }
@@ -122,6 +93,20 @@ async function GetServerName(channelId: string, authToken: string) {
   };
 }
 
+function getRandomUniquePositions(length: number, count: number): number[] {
+  const positions: number[] = [];
+
+  while (positions.length < count) {
+    const newPosition = Math.floor(Math.random() * length);
+
+    if (!positions.includes(newPosition)) {
+      positions.push(newPosition);
+    }
+  }
+
+  return positions;
+}
+
 async function handleLoopForChooseFiveMessages(channelId: string) {
   const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=100`;
 
@@ -144,11 +129,35 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     messages.concat(previousArray);
   }
 
+  messages.filter((message) => {
+    const isSticker = message.sticker_items?.length;
+    const isServerEmoji = message.content.includes("<:");
+    const hasOnlyOneMention = message.content.split("<@").length - 1 === 1;
+    const allEqualCharacters = verifyMessage(message.content);
+    const isntBot = !message.author.bot;
+    const notShortMessage =
+      message.content.length > 5 && !message.attachments.length;
+
+    if (
+      !isSticker &&
+      !isServerEmoji &&
+      !hasOnlyOneMention &&
+      !allEqualCharacters &&
+      isntBot &&
+      notShortMessage
+    )
+      return message;
+  });
+
+  const randomPositions = getRandomUniquePositions(messages.length - 1, 5);
+
   const choosedMessages: IGetDiscordMessagesResponse[] = [];
 
-  for (let index = 1; index <= 5; index++) {
-    const choosedMessage = ChooseFiveMessages(messages);
-    choosedMessages.push(choosedMessage);
+  for (let i = 0; i < 5; i++) {
+    choosedMessages.push({
+      message: messages[randomPositions[i]],
+      authors: handleDistinctAuthorArray(messages),
+    });
   }
 
   const serverNameAndIcon = await GetServerName(channelId, authToken);
