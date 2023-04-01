@@ -323,6 +323,48 @@ async function SaveScore(req: Request, res: Response) {
 
 //#endregion
 
+async function GetDiscordleChannelName(channelId: string, guildId: string) {
+  const url = `https://discord.com/api/v10/guilds/${guildId}/channels`;
+
+  const result = await request(url, {
+    headers: { authorization: authToken },
+  });
+
+  const channels: IChannel[] = await result.body.json();
+
+  const channelName = channels.find(({ id }) => id === channelId).name;
+
+  return channelName;
+}
+
+//#region SendNewDiscordleMessagesAvaible
+async function sendNewDiscordleMessagesAvaible(
+  channelId: string,
+  guildId: string
+) {
+  const body = new FormData();
+
+  const dailyDiscordleChannelId = await findDailyDiscordleChannelId(guildId);
+
+  const channelName = await GetDiscordleChannelName(channelId, guildId);
+
+  const today = new Date().toLocaleDateString();
+
+  const content = `:warning:  AVISO!  :warning: \n\n NOVO DISCORDLE DE **#${channelName}** JÁ DISPONÍVEL!!! (${today}) \n\n Responda agora mesmo! \n\n http://localhost:3000/game?channelId=${channelId}&guildId=${guildId} \n\n Até mais.  :robot:`;
+
+  body.append("content", content);
+
+  await request(
+    `https://discord.com/api/v10/channels/${dailyDiscordleChannelId}/messages`,
+    {
+      method: "POST",
+      body,
+      headers: { authorization: authToken },
+    }
+  );
+}
+//#endregion
+
 //#region Timer
 let timer = "";
 
@@ -330,7 +372,7 @@ function GetTimer(req: Request, res: Response) {
   return res.json(timer);
 }
 
-function updateMessagesAtMidnight(channelId: string) {
+function updateMessagesAtMidnight(channelId: string, guildId: string) {
   const now = moment();
 
   const timeUntilMidnight = moment.duration({
@@ -369,7 +411,7 @@ function updateMessagesAtMidnight(channelId: string) {
 
     await handleLoopForChooseFiveMessages(channelId);
 
-    updateMessagesAtMidnight(channelId);
+    await sendNewDiscordleMessagesAvaible(channelId, guildId);
   }, msUntilMidnight);
 }
 //#endregion
@@ -417,15 +459,7 @@ async function CreateGuildInstance(guildInstance: IGuildInstance) {
 async function sendCreatedInstanceMessage(channelId: string, guildId: string) {
   const dailyDiscordleChannelId = await findDailyDiscordleChannelId(guildId);
 
-  const url = `https://discord.com/api/v10/guilds/${guildId}/channels`;
-
-  const result = await request(url, {
-    headers: { authorization: authToken },
-  });
-
-  const channels: IChannel[] = await result.body.json();
-
-  const channelName = channels.find(({ id }) => id === channelId).name;
+  const channelName = await GetDiscordleChannelName(channelId, guildId);
 
   const body = new FormData();
 
@@ -450,7 +484,7 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 
   if (!messages.length) await handleLoopForChooseFiveMessages(channelId);
 
-  updateMessagesAtMidnight(channelId.toString());
+  updateMessagesAtMidnight(channelId.toString(), guildId.toString());
 
   await sendCreatedInstanceMessage(channelId.toString(), guildId.toString());
 
@@ -468,9 +502,14 @@ async function GetDiscordleHistory(req: Request, res: Response) {
     channelId,
   }).lean();
 
+  if (!scoreInstance?.scores) return res.json([]);
+
   const membersData: Record<string, IRankingTableData> =
     scoreInstance.scores.reduce(
-      (acc: Record<string, IRankingTableData>, { member, scoreDetails }) => {
+      (
+        acc: Record<string, IRankingTableData>,
+        { member, scoreDetails, _id }
+      ) => {
         const totalScore = scoreDetails.reduce((accumulator, curValue) => {
           return accumulator + curValue.score;
         }, 0);
@@ -478,13 +517,14 @@ async function GetDiscordleHistory(req: Request, res: Response) {
         if (acc[member.id]) acc[member.id].totalScore += totalScore;
         else {
           acc[member.id] = {
+            rowId: _id,
             member: {
               avatarUrl: member.avatarUrl,
               username: member.username,
               userId: member.id,
             },
             totalScore,
-            key: 0,
+            position: 0,
           };
         }
 
@@ -498,22 +538,22 @@ async function GetDiscordleHistory(req: Request, res: Response) {
     .map((data, index, array) => {
       switch (index) {
         case 0:
-          data.key = 1;
+          data.position = 1;
           break;
         case 1:
-          data.key = 2;
+          data.position = 2;
           break;
         case 2:
-          data.key = 3;
+          data.position = 3;
           break;
         default:
-          data.key = index + 1;
+          data.position = index + 1;
           break;
       }
 
       // tratamento para empates
       if (data.totalScore === array[index - 1]?.totalScore) {
-        data.key = array[index - 1].key;
+        data.position = array[index - 1].position;
       }
 
       return data;
@@ -529,10 +569,13 @@ async function GetUserScoreDetail(req: Request, res: Response) {
     channelId,
   }).lean();
 
+  if (!scoreInstance?.scores) return res.json([]);
+
   const result: IUserScoreDetail[] = scoreInstance.scores
     .filter(({ member }) => member.id === userId)
-    .map(({ date, scoreDetails }) => {
+    .map(({ date, scoreDetails, _id }) => {
       return {
+        rowId: _id,
         date,
         scoreDetails,
       } as IUserScoreDetail;
