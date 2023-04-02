@@ -229,7 +229,13 @@ async function getAwnser(userId: string, channelId: string) {
 
   if (!currentDayAwnsers) return [] as IAwnser[];
 
-  return currentDayAwnsers.scoreDetails;
+  return currentDayAwnsers.scoreDetails.map(({ score, success, tabKey }) => {
+    return {
+      score,
+      success,
+      tabKey,
+    } as IAwnser;
+  });
 }
 
 async function VerifyAlreadyAwnsered(req: Request, res: Response) {
