@@ -430,11 +430,22 @@ function updateMessagesAtMidnight(channelId: string, guildId: string) {
 async function GetInstanceChannels(req: Request, res: Response) {
   const { guildId } = req.query;
 
-  const guildInstance = await GuildInstanceModel.findOne({ guildId })
-    .select("channels")
+  const guildInstance: IGuildInstance = await GuildInstanceModel.findOne({
+    guildId,
+  })
+    .select("channels -_id")
     .lean();
 
-  return res.json(guildInstance);
+  const filteredChannels = guildInstance.channels.map(
+    ({ channelName, channelId }) => {
+      return {
+        channelName,
+        channelId,
+      };
+    }
+  );
+
+  return res.json(filteredChannels);
 }
 
 async function GetChannelMembers(req: Request, res: Response) {
