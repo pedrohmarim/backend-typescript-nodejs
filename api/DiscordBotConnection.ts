@@ -87,7 +87,7 @@ const DiscordBotConnection = async () => {
             ],
           },
           {
-            id: "1089918362311733378", //bot idd
+            id: client.user.id,
             allow: [PermissionFlagsBits.SendMessages],
           },
           {
