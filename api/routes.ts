@@ -13,5 +13,6 @@ router.get("/getDiscordleHistory", Controller.GetDiscordleHistory);
 router.get("/getUserScoreDetail", Controller.GetUserScoreDetail);
 router.post("/createDiscordleInstance", Controller.CreateDiscordleInstance);
 router.post("/saveScore", Controller.SaveScore);
+router.get("/validateToken", Controller.ValidateToken);
 
 export default router;

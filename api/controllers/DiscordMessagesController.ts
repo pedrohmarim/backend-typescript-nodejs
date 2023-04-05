@@ -4,6 +4,7 @@ import MessageInstanceModel from "../models/MessageInstanceModel";
 import GuildInstanceModel from "../models/GuildInstanceModel";
 import ScoreInstanceModel from "../models/ScoreInstanceModel";
 import moment from "moment-timezone";
+import sqlite3 from "sqlite3";
 import {
   IAwnser,
   IRankingTableData,
@@ -22,6 +23,13 @@ import {
   IMessageInstance,
   IGuild,
 } from "../interfaces/IMessage";
+import {
+  DMChannel,
+  EmbedBuilder,
+  Message,
+  MessageFlags,
+  User,
+} from "discord.js";
 
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
@@ -505,7 +513,7 @@ async function sendCreatedInstanceMessage(channelId: string, guildId: string) {
 
   const body = new FormData();
 
-  const content = `A instância do canal **#${channelName}** foi criada! :white_check_mark: \n\n Agora é só começar a jogar! \n\n https://discordlle.vercel.app/chooseProfile?channelId=${channelId}&guildId=${guildId} \n\n Até mais.  :robot:`;
+  const content = `A instância do canal **#${channelName}** foi criada! :white_check_mark: \n\nAgora é só começar a jogar! \n\nhttps://discordlle.vercel.app/chooseProfile?channelId=${channelId}&guildId=${guildId} \n\n Até mais.  :robot:`;
 
   body.append("content", content);
 
@@ -633,7 +641,32 @@ async function GetUserScoreDetail(req: Request, res: Response) {
 
 //#endregion
 
+async function ValidateToken(req: Request, res: Response) {
+  const { token, userId } = req.query;
+
+  var db = new sqlite3.Database("code_database");
+
+  db.serialize(() => {
+    db.all(
+      "SELECT id, userid, code FROM UsersCode WHERE userid = ? AND code = ?",
+      [userId, token],
+      (err, rows: { id: number; userid: string; code: string }[]) => {
+        if (!err && rows.length > 0) {
+          db.run(`DELETE FROM UsersCode WHERE userid = ?`, [userId]);
+
+          db.close();
+
+          return res.json(true);
+        }
+
+        return res.json(false);
+      }
+    );
+  });
+}
+
 export {
+  ValidateToken,
   GetUserScoreDetail,
   GetDiscordleHistory,
   CreateGuildInstance,

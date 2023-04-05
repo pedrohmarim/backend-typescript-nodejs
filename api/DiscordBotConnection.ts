@@ -6,6 +6,7 @@ import {
   ChannelType,
   Client,
   GatewayIntentBits,
+  MessageFlags,
   NonThreadGuildBasedChannel,
   PermissionFlagsBits,
 } from "discord.js";
@@ -14,12 +15,15 @@ import {
   IInstanceChannel,
   IMember,
 } from "interfaces/IGuildInstance";
+import sqlite3 from "sqlite3";
 
 const DiscordBotConnection = async () => {
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
       GatewayIntentBits.GuildPresences,
     ],
   });
@@ -106,7 +110,7 @@ const DiscordBotConnection = async () => {
         ],
       })
       .then(async (channel) => {
-        const content = `Saudações! Eu sou o bot do Discordle. \n\n Serei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\n Estarei a disposição para qualquer ajuda.  :robot:`;
+        const content = `Saudações! Eu sou o bot do Discordle. \n\nSerei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\nEstarei a disposição para qualquer ajuda.  :robot:`;
 
         await channel.send(content);
       });
@@ -145,6 +149,49 @@ const DiscordBotConnection = async () => {
     } catch {
       return null;
     }
+  });
+
+  client.on("ready", async () => {
+    await client.application.commands.create({
+      name: "code",
+      description: "Retorna o código único para login no Discordle.",
+    });
+  });
+
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isCommand() || interaction.commandName !== "code") return;
+
+    const MIN_VALUE = 10000;
+    const MAX_VALUE = 99999;
+
+    const randomNum =
+      Math.floor(Math.random() * (MAX_VALUE - MIN_VALUE + 1)) + MIN_VALUE;
+
+    const code = randomNum.toString();
+
+    const message = `Olá, <@${interaction.user.id}>! \n\n Aqui está seu código: ${code} \n\n Até mais! :robot:`;
+
+    var db = new sqlite3.Database("code_database");
+
+    db.serialize(() => {
+      db.run(
+        "CREATE TABLE IF NOT EXISTS UsersCode (id INTEGER PRIMARY KEY AUTOINCREMENT, userid TEXT, code TEXT)"
+      );
+
+      db.run(`DELETE FROM UsersCode WHERE userid = ?`, [interaction.user.id]);
+
+      db.run(
+        `INSERT INTO UsersCode (userid, code) VALUES (${interaction.user.id}, ${code})`
+      );
+    });
+
+    db.close();
+
+    await interaction.reply({
+      content: message,
+      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
+    });
   });
 
   client.login(process.env.BOT_TOKEN);
