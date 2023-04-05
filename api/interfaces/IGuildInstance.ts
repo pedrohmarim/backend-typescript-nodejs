@@ -1,12 +1,13 @@
 export interface IGuildInstance {
   guildId: string;
-  channels: IInstanceChannels[];
+  channels: IInstanceChannel[];
 }
 
-export interface IInstanceChannels {
+export interface IInstanceChannel {
   channelName: string;
   channelId: string;
   members: IMember[];
+  notListed: boolean;
 }
 
 export interface IMember {

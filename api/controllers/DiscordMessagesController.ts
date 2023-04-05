@@ -10,7 +10,11 @@ import {
   IScoreInstance,
   IUserScoreDetail,
 } from "interfaces/IScore";
-import { IGuildInstance } from "interfaces/IGuildInstance";
+import {
+  IGuildInstance,
+  IInstanceChannel,
+  IMember,
+} from "interfaces/IGuildInstance";
 import {
   IChannel,
   IGetDiscordMessagesResponse,
@@ -22,8 +26,6 @@ import {
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
 //#region GetDiscordMessages
-const range = (start: number, end: number): number =>
-  Math.floor(Math.random() * (end - start + 1)) + start;
 
 function verifyMessage(content: string): boolean {
   let allEqual = true;
@@ -105,6 +107,17 @@ function getRandomUniquePositions(length: number, count: number): number[] {
   }
 
   return positions;
+}
+
+async function AddPrivateChannel(
+  guildId: string,
+  privateChannel: IInstanceChannel
+) {
+  const query = { guildId };
+  const update = { $push: { channels: privateChannel } };
+  const options = { upsert: true };
+
+  await GuildInstanceModel.updateOne(query, update, options);
 }
 
 async function handleLoopForChooseFiveMessages(channelId: string) {
@@ -318,7 +331,9 @@ async function SaveScore(req: Request, res: Response) {
 
   const channel = guildInstance.channels.find((c) => c.channelId === channelId);
 
-  const member = channel.members.find((member) => member.id === scores.userId);
+  const member = channel.members.find(
+    (member: IMember) => member.id === scores.userId
+  );
 
   const query = { channelId };
   const update = { member, $push: { scores: { ...scores, member } } };
@@ -443,10 +458,11 @@ async function GetInstanceChannels(req: Request, res: Response) {
     .lean();
 
   const filteredChannels = guildInstance.channels.map(
-    ({ channelName, channelId }) => {
+    ({ channelName, channelId, notListed }) => {
       return {
         channelName,
         channelId,
+        notListed,
       };
     }
   );
@@ -505,6 +521,11 @@ async function sendCreatedInstanceMessage(channelId: string, guildId: string) {
 
 async function CreateDiscordleInstance(req: Request, res: Response) {
   const { channelId, guildId } = req.body;
+
+  await GuildInstanceModel.updateMany(
+    {},
+    { $set: { "channels.$[].notListed": false } }
+  );
 
   const messages = await MessageInstanceModel.find({ channelId });
 
@@ -625,5 +646,6 @@ export {
   GetTimer,
   VerifyAlreadyAwnsered,
   GetInstanceChannels,
+  AddPrivateChannel,
   CreateDiscordleInstance,
 };

@@ -1,6 +1,6 @@
 import {
   IGuildInstance,
-  IInstanceChannels,
+  IInstanceChannel,
   IMember,
 } from "interfaces/IGuildInstance";
 import { model, Schema } from "mongoose";
@@ -13,7 +13,12 @@ const GuildInstance = new Schema<IGuildInstance>(
     },
     channels: [
       {
-        type: new Schema<IInstanceChannels>({
+        type: new Schema<IInstanceChannel>({
+          notListed: {
+            type: Boolean,
+            default: false,
+            required: false,
+          },
           channelId: {
             type: String,
             required: true,

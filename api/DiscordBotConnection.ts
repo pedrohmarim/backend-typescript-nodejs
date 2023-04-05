@@ -1,13 +1,17 @@
-import { CreateGuildInstance } from "./controllers/DiscordMessagesController";
+import {
+  CreateGuildInstance,
+  AddPrivateChannel,
+} from "./controllers/DiscordMessagesController";
 import {
   ChannelType,
   Client,
   GatewayIntentBits,
+  NonThreadGuildBasedChannel,
   PermissionFlagsBits,
 } from "discord.js";
 import {
   IGuildInstance,
-  IInstanceChannels,
+  IInstanceChannel,
   IMember,
 } from "interfaces/IGuildInstance";
 
@@ -35,10 +39,15 @@ const DiscordBotConnection = async () => {
           channel.type === ChannelType.GuildText &&
           channel.name !== "daily-discordle"
         ) {
-          const messages = await channel.messages.fetch({ limit: 5 });
-          const hasBotMessages = messages.some((message) => message.author.bot);
-
-          if (messages.size === 5 && !hasBotMessages) return channel;
+          try {
+            const messages = await channel.messages.fetch({ limit: 5 });
+            const hasBotMessages = messages.some(
+              (message) => message.author.bot
+            );
+            if (messages.size === 5 && !hasBotMessages) return channel;
+          } catch {
+            return null;
+          }
         }
 
         return null;
@@ -63,7 +72,7 @@ const DiscordBotConnection = async () => {
           channelId: channel.id,
           channelName: channel.name,
           members,
-        } as IInstanceChannels;
+        } as IInstanceChannel;
       });
 
     const guildInstance: IGuildInstance = {
@@ -101,6 +110,41 @@ const DiscordBotConnection = async () => {
 
         await channel.send(content);
       });
+  });
+
+  client.on("channelUpdate", async (channel: NonThreadGuildBasedChannel) => {
+    try {
+      if (
+        channel.type === ChannelType.GuildText &&
+        channel.name !== "daily-discordle"
+      ) {
+        const messages = await channel.messages.fetch({ limit: 5 });
+        const hasBotMessages = messages.some((message) => message.author.bot);
+
+        const members: IMember[] = channel.members
+          .filter((x) => !x.user.bot)
+          .map((member) => {
+            return {
+              id: member.id,
+              username: member.nickname || member.user.username,
+              avatarUrl: member.displayAvatarURL(),
+              inUse: false,
+            } as IMember;
+          });
+
+        const privateChannel: IInstanceChannel = {
+          channelId: channel.id,
+          channelName: channel.name,
+          members,
+          notListed: true,
+        };
+
+        if (messages.size === 5 && !hasBotMessages)
+          await AddPrivateChannel(channel.guild.id, privateChannel);
+      }
+    } catch {
+      return null;
+    }
   });
 
   client.login(process.env.BOT_TOKEN);
