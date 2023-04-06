@@ -35,7 +35,7 @@ const DiscordBotConnection = async () => {
       .filter(
         ({ name, parentId }) => name === "daily-discordle" && parentId === null
       )
-      .forEach((channel) => channel.delete());
+      .forEach(async (channel) => await channel.delete());
 
     const filteredChannels = await Promise.all(
       channels.map(async (channel) => {
