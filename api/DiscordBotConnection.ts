@@ -1,3 +1,5 @@
+import sqlite3 from "sqlite3";
+import { request } from "undici";
 import {
   CreateGuildInstance,
   AddPrivateChannel,
@@ -15,7 +17,6 @@ import {
   IInstanceChannel,
   IMember,
 } from "interfaces/IGuildInstance";
-import sqlite3 from "sqlite3";
 
 const DiscordBotConnection = async () => {
   const client = new Client({
@@ -31,11 +32,17 @@ const DiscordBotConnection = async () => {
   client.on("guildCreate", async (guild) => {
     const channels = await guild.channels.fetch();
 
-    channels
-      .filter(
-        ({ name, parentId }) => name === "daily-discordle" && parentId === null
-      )
-      .forEach(async (channel) => await channel.delete());
+    const discordleChannelId = channels.find(
+      (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
+    ).id;
+
+    await request(
+      `https://discord.com/api/v10/channels/${discordleChannelId}`,
+      {
+        method: "DELETE",
+        headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
+      }
+    );
 
     const filteredChannels = await Promise.all(
       channels.map(async (channel) => {
@@ -86,9 +93,15 @@ const DiscordBotConnection = async () => {
 
     await CreateGuildInstance(guildInstance);
 
-    guild.channels
+    const existingChannel = channels.find(
+      (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
+    );
+
+    if (existingChannel) return;
+
+    await guild.channels
       .create({
-        name: "Daily Discordle",
+        name: "daily-discordle",
         type: ChannelType.GuildText,
         permissionOverwrites: [
           {
@@ -153,45 +166,64 @@ const DiscordBotConnection = async () => {
 
   client.on("ready", async () => {
     await client.application.commands.create({
-      name: "code",
+      name: "getcode",
       description: "Retorna o código único para login no Discordle.",
     });
   });
 
   client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isCommand() || interaction.commandName !== "code") return;
+    if (!interaction.isCommand()) return;
 
-    const MIN_VALUE = 10000;
-    const MAX_VALUE = 99999;
+    if (
+      interaction.commandName === "getcode" &&
+      interaction.channel.name !== "daily-discordle"
+    )
+      await interaction.reply({
+        content: "Use este comando no chat daily-discordle!",
+        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
+      });
 
-    const randomNum =
-      Math.floor(Math.random() * (MAX_VALUE - MIN_VALUE + 1)) + MIN_VALUE;
+    if (
+      interaction.commandName === "getcode" &&
+      interaction.channel.name === "daily-discordle"
+    ) {
+      const MIN_VALUE = 10000;
+      const MAX_VALUE = 99999;
 
-    const code = randomNum.toString();
+      const randomNum =
+        Math.floor(Math.random() * (MAX_VALUE - MIN_VALUE + 1)) + MIN_VALUE;
 
-    const message = `Olá, <@${interaction.user.id}>! \n\n Aqui está seu código: ${code} \n\n Até mais! :robot:`;
+      const code = randomNum.toString();
 
-    var db = new sqlite3.Database("code_database");
+      var db = new sqlite3.Database("code_database");
 
-    db.serialize(() => {
-      db.run(
-        "CREATE TABLE IF NOT EXISTS UsersCode (id INTEGER PRIMARY KEY AUTOINCREMENT, userid TEXT, code TEXT)"
-      );
+      db.serialize(() => {
+        db.run(
+          "CREATE TABLE IF NOT EXISTS UsersCode (id INTEGER PRIMARY KEY AUTOINCREMENT, userid TEXT, code TEXT)"
+        );
 
-      db.run(`DELETE FROM UsersCode WHERE userid = ?`, [interaction.user.id]);
+        db.each(`DELETE FROM UsersCode WHERE userid = ${interaction.user.id}`);
 
-      db.run(
-        `INSERT INTO UsersCode (userid, code) VALUES (${interaction.user.id}, ${code})`
-      );
-    });
+        db.run(
+          `INSERT INTO UsersCode (userid, code) VALUES (${interaction.user.id}, ${code})`
+        );
+      });
 
-    db.close();
+      const message = `Olá, <@${interaction.user.id}>! \n\n Aqui está seu código: ${code} \n\n Até mais! :robot:`;
 
-    await interaction.reply({
-      content: message,
-      ephemeral: true,
-      flags: MessageFlags.Ephemeral,
-    });
+      try {
+        await interaction.reply({
+          content: message,
+          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
+        });
+
+        db.close();
+      } catch {
+        return;
+      }
+    }
   });
 
   client.login(process.env.BOT_TOKEN);

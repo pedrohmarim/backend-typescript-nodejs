@@ -23,13 +23,6 @@ import {
   IMessageInstance,
   IGuild,
 } from "../interfaces/IMessage";
-import {
-  DMChannel,
-  EmbedBuilder,
-  Message,
-  MessageFlags,
-  User,
-} from "discord.js";
 
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
@@ -121,11 +114,19 @@ async function AddPrivateChannel(
   guildId: string,
   privateChannel: IInstanceChannel
 ) {
-  const query = { guildId };
-  const update = { $push: { channels: privateChannel } };
-  const options = { upsert: true };
+  const guildInstance = await GuildInstanceModel.findOne({ guildId });
 
-  await GuildInstanceModel.updateOne(query, update, options);
+  if (
+    !guildInstance?.channels.some(
+      (c) => c.channelId === privateChannel.channelId
+    )
+  ) {
+    const query = { guildId };
+    const update = { $push: { channels: privateChannel } };
+    const options = { upsert: true };
+
+    await GuildInstanceModel.updateOne(query, update, options);
+  }
 }
 
 async function handleLoopForChooseFiveMessages(channelId: string) {
@@ -648,18 +649,26 @@ async function ValidateToken(req: Request, res: Response) {
 
   db.serialize(() => {
     db.all(
-      "SELECT id, userid, code FROM UsersCode WHERE userid = ? AND code = ?",
-      [userId, token],
-      (err, rows: { id: number; userid: string; code: string }[]) => {
-        if (!err && rows.length > 0) {
-          db.run(`DELETE FROM UsersCode WHERE userid = ?`, [userId]);
-
+      `SELECT userid, code FROM UsersCode WHERE userid = ${userId} AND code = ${token}`,
+      (err, rows) => {
+        if (err) {
           db.close();
-
-          return res.json(true);
+          return res.json(false);
         }
 
-        return res.json(false);
+        if (rows.length > 0) {
+          db.run(`DELETE FROM UsersCode WHERE userid = ${userId}`, (err) => {
+            db.close();
+            if (err) {
+              return res.json(false);
+            } else {
+              return res.json(true);
+            }
+          });
+        } else {
+          db.close();
+          return res.json(false);
+        }
       }
     );
   });
