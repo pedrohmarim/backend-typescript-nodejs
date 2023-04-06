@@ -101,7 +101,7 @@ const DiscordBotConnection = async () => {
 
     if (existingChannel) return;
 
-    await guild.channels
+    guild.channels
       .create({
         name: "Daily Discordle",
         type: ChannelType.GuildText,
