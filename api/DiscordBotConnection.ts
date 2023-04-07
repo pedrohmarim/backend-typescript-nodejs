@@ -10,7 +10,6 @@ import {
   GatewayIntentBits,
   MessageFlags,
   NonThreadGuildBasedChannel,
-  PermissionFlagsBits,
 } from "discord.js";
 import {
   IGuildInstance,
@@ -94,30 +93,16 @@ const DiscordBotConnection = async () => {
 
     await CreateGuildInstance(guildInstance);
 
-    const response = await request(
-      `https://discord.com/api/v10/guilds/${guild.id}/channels`,
-      {
-        method: "POST",
-        headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
-        body: JSON.stringify({
-          name: "Daily Discordle",
-          type: ChannelType.GuildText,
-        }),
-      }
-    );
+    guild.channels
+      .create({
+        name: "Daily Discordle",
+        type: ChannelType.GuildText,
+      })
+      .then(async (channel) => {
+        const content = `Saudações! Eu sou o bot do Discordle. \n\nSerei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\nEstarei a disposição para qualquer ajuda.  :robot:`;
 
-    const channel: NonThreadGuildBasedChannel = await response.body.json();
-
-    const content = `Saudações! Eu sou o bot do Discordle. \n\nSerei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\nEstarei a disposição para qualquer ajuda.  :robot:`;
-
-    await request(
-      `https://discord.com/api/v10/channels/${channel.id}/messages`,
-      {
-        method: "POST",
-        headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
-        body: JSON.stringify({ content }),
-      }
-    );
+        await channel.send(content);
+      });
   });
 
   client.on("channelCreate", async (channel: NonThreadGuildBasedChannel) => {
