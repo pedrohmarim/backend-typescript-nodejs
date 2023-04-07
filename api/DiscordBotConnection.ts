@@ -105,7 +105,7 @@ const DiscordBotConnection = async () => {
       });
   });
 
-  client.on("channelCreate", async (channel: NonThreadGuildBasedChannel) => {
+  client.on("channelUpdate", async (channel: NonThreadGuildBasedChannel) => {
     try {
       if (
         channel.type === ChannelType.GuildText &&
