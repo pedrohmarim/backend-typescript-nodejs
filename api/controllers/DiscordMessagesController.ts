@@ -510,7 +510,11 @@ async function CreateGuildInstance(guildInstance: IGuildInstance) {
 
   if (alreadyExists !== null) return;
 
-  await GuildInstanceModel.create(guildInstance);
+  await GuildInstanceModel.updateOne(
+    { guildId },
+    { guildInstance },
+    { upsert: true }
+  );
 }
 
 async function sendCreatedInstanceMessage(channelId: string, guildId: string) {

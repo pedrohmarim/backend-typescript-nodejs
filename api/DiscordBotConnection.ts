@@ -36,7 +36,7 @@ const DiscordBotConnection = async () => {
       (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
     )?.id;
 
-    if (discordleChannelId) {
+    if (discordleChannelId)
       await request(
         `https://discord.com/api/v10/channels/${discordleChannelId}`,
         {
@@ -44,7 +44,6 @@ const DiscordBotConnection = async () => {
           headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
         }
       );
-    }
 
     const filteredChannels = await Promise.all(
       channels.map(async (channel) => {
@@ -95,70 +94,70 @@ const DiscordBotConnection = async () => {
 
     await CreateGuildInstance(guildInstance);
 
-    const discordleChannel = await guild.channels.create({
-      name: "Daily Discordle",
-      type: ChannelType.GuildText,
-      permissionOverwrites: [
-        {
-          id: guild.roles.everyone,
-          allow: [PermissionFlagsBits.ViewChannel],
-          deny: [
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.CreateInstantInvite,
-          ],
-        },
-        {
-          id: client.user.id,
-          allow: [PermissionFlagsBits.SendMessages],
-        },
-        {
-          id: guild.ownerId,
-          allow: [PermissionFlagsBits.SendMessages],
-        },
-      ],
-    });
+    const response = await request(
+      `https://discord.com/api/v10/guilds/${guild.id}/channels`,
+      {
+        method: "POST",
+        headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
+        body: JSON.stringify({
+          name: "Daily Discordle",
+          type: ChannelType.GuildText,
+        }),
+      }
+    );
+
+    const channel: NonThreadGuildBasedChannel = await response.body.json();
 
     const content = `Saudações! Eu sou o bot do Discordle. \n\nSerei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\nEstarei a disposição para qualquer ajuda.  :robot:`;
 
-    await discordleChannel.send(content);
-
-    client.on("channelCreate", async (channel: NonThreadGuildBasedChannel) => {
-      try {
-        if (
-          channel.type === ChannelType.GuildText &&
-          channel.name !== "daily-discordle"
-        ) {
-          const messages = await channel.messages.fetch({ limit: 5 });
-          const hasBotMessages = messages.some((message) => message.author.bot);
-
-          const members: IMember[] = channel.members
-            .filter((x) => !x.user.bot)
-            .map((member) => {
-              return {
-                id: member.id,
-                username: member.nickname || member.user.username,
-                avatarUrl: member.displayAvatarURL(),
-                inUse: false,
-              } as IMember;
-            });
-
-          const privateChannel: IInstanceChannel = {
-            channelId: channel.id,
-            channelName: channel.name,
-            members,
-            notListed: true,
-          };
-
-          if (messages.size === 5 && !hasBotMessages)
-            await AddPrivateChannel(channel.guild.id, privateChannel);
-        }
-      } catch {
-        return null;
+    await request(
+      `https://discord.com/api/v10/channels/${channel.id}/messages`,
+      {
+        method: "POST",
+        headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
+        body: JSON.stringify({ content }),
       }
-    });
+    );
+  });
+
+  client.on("channelCreate", async (channel: NonThreadGuildBasedChannel) => {
+    try {
+      if (
+        channel.type === ChannelType.GuildText &&
+        channel.name !== "daily-discordle"
+      ) {
+        const messages = await channel.messages.fetch({ limit: 5 });
+        const hasBotMessages = messages.some((message) => message.author.bot);
+
+        const members: IMember[] = channel.members
+          .filter((x) => !x.user.bot)
+          .map((member) => {
+            return {
+              id: member.id,
+              username: member.nickname || member.user.username,
+              avatarUrl: member.displayAvatarURL(),
+              inUse: false,
+            } as IMember;
+          });
+
+        const privateChannel: IInstanceChannel = {
+          channelId: channel.id,
+          channelName: channel.name,
+          members,
+          notListed: true,
+        };
+
+        if (messages.size === 5 && !hasBotMessages)
+          await AddPrivateChannel(channel.guild.id, privateChannel);
+      }
+    } catch {
+      return null;
+    }
   });
 
   client.on("ready", async () => {
+    client.application.commands.set([]);
+
     await client.application.commands.create({
       name: "getcode",
       description: "Retorna o código único para login no Discordle.",
