@@ -31,18 +31,18 @@ const DiscordBotConnection = async () => {
   client.on("guildCreate", async (guild) => {
     const channels = await guild.channels.fetch();
 
-    const discordleChannelId = channels.find(
-      (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
-    )?.id;
+    // const discordleChannelId = channels.find(
+    //   (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
+    // )?.id;
 
-    if (discordleChannelId)
-      await request(
-        `https://discord.com/api/v10/channels/${discordleChannelId}`,
-        {
-          method: "DELETE",
-          headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
-        }
-      );
+    // if (discordleChannelId)
+    //   await request(
+    //     `https://discord.com/api/v10/channels/${discordleChannelId}`,
+    //     {
+    //       method: "DELETE",
+    //       headers: { authorization: `Bot ${process.env.BOT_TOKEN}` },
+    //     }
+    //   );
 
     const filteredChannels = await Promise.all(
       channels.map(async (channel) => {
