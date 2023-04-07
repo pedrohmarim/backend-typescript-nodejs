@@ -466,19 +466,14 @@ async function GetInstanceChannels(req: Request, res: Response) {
     .select("channels -_id")
     .lean();
 
-  if (!guildInstance) return res.status(400).json();
-
-  if (!guildInstance?.channels.length) return res.json([]);
-
-  const filteredChannels = guildInstance.channels.map(
-    ({ channelName, channelId, notListed }) => {
+  const filteredChannels =
+    guildInstance?.channels.map(({ channelName, channelId, notListed }) => {
       return {
         channelName,
         channelId,
         notListed,
       };
-    }
-  );
+    }) || [];
 
   return res.json(filteredChannels);
 }
