@@ -140,8 +140,6 @@ const DiscordBotConnection = async () => {
   });
 
   client.on("ready", async () => {
-    client.application.commands.set([]);
-
     await client.application.commands.create({
       name: "getcode",
       description: "Retorna o código único para login no Discordle.",
