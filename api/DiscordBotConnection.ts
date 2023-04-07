@@ -112,7 +112,6 @@ const DiscordBotConnection = async () => {
         channel.name !== "daily-discordle"
       ) {
         const messages = await channel.messages.fetch({ limit: 5 });
-        const hasBotMessages = messages.some((message) => message.author.bot);
 
         const members: IMember[] = channel.members
           .filter((x) => !x.user.bot)
@@ -132,7 +131,7 @@ const DiscordBotConnection = async () => {
           notListed: true,
         };
 
-        if (messages.size === 5 && !hasBotMessages)
+        if (messages.size === 5)
           await AddPrivateChannel(channel.guild.id, privateChannel);
       }
     } catch {
