@@ -310,7 +310,7 @@ async function SendScoreMessageOnDailyDiscordle(
 
   const today = new Date().toLocaleDateString("pt-br");
 
-  const content = `<@${userId}> respondeu o Discordle diário! (${today}) \n\n Pontuação: ${totalScore} \n\n   **1**     **2**     **3**    **4**     **5** \n ${scoreEmojis} \n \n Responda você também! \n https://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId}`;
+  const content = `<@${userId}> respondeu o Discordle diário! (${today}) \n\nPontuação: ${totalScore} \n\n   **1**     **2**     **3**    **4**     **5** \n ${scoreEmojis} \n\nResponda você também! \nhttps://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId}`;
 
   body.append("content", content);
 
@@ -389,7 +389,7 @@ async function sendNewDiscordleMessagesAvaible(
 
   const today = new Date().toLocaleDateString("pt-br");
 
-  const content = `:warning:  AVISO!  :warning: \n\n NOVO DISCORDLE DE **#${channelName}** JÁ DISPONÍVEL!!! (${today}) \n\n Responda agora mesmo! \n\n https://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId} \n\n Até mais.  :robot:`;
+  const content = `:warning:  AVISO!  :warning: \n\nNOVO DISCORDLE DE **#${channelName}** JÁ DISPONÍVEL!!! (${today}) \n\nResponda agora mesmo! \n\nhttps://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId} \n\nAté mais.  :robot:`;
 
   body.append("content", content);
 
@@ -466,6 +466,8 @@ async function GetInstanceChannels(req: Request, res: Response) {
     .select("channels -_id")
     .lean();
 
+  if (!guildInstance) return res.status(400).json();
+
   if (!guildInstance?.channels.length) return res.json([]);
 
   const filteredChannels = guildInstance.channels.map(
@@ -487,6 +489,8 @@ async function GetChannelMembers(req: Request, res: Response) {
   const guildInstance = await GuildInstanceModel.findOne({
     guildId,
   }).lean();
+
+  if (!guildInstance?.channels.length) return res.json([]);
 
   const channel = guildInstance.channels.find((c) => c.channelId === channelId);
 
@@ -516,7 +520,7 @@ async function sendCreatedInstanceMessage(channelId: string, guildId: string) {
 
   const body = new FormData();
 
-  const content = `A instância do canal **#${channelName}** foi criada! :white_check_mark: \n\nAgora é só começar a jogar! \n\nhttps://discordlle.vercel.app/chooseProfile?channelId=${channelId}&guildId=${guildId} \n\n Até mais.  :robot:`;
+  const content = `A instância do canal **#${channelName}** foi criada! :white_check_mark: \n\nAgora é só começar a jogar! \n\nhttps://discordlle.vercel.app/chooseProfile?channelId=${channelId}&guildId=${guildId} \n\nAté mais.  :robot:`;
 
   body.append("content", content);
 

@@ -95,75 +95,67 @@ const DiscordBotConnection = async () => {
 
     await CreateGuildInstance(guildInstance);
 
-    const existingChannel = channels.find(
-      (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
-    );
+    const discordleChannel = await guild.channels.create({
+      name: "Daily Discordle",
+      type: ChannelType.GuildText,
+      permissionOverwrites: [
+        {
+          id: guild.roles.everyone,
+          allow: [PermissionFlagsBits.ViewChannel],
+          deny: [
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.CreateInstantInvite,
+          ],
+        },
+        {
+          id: client.user.id,
+          allow: [PermissionFlagsBits.SendMessages],
+        },
+        {
+          id: guild.ownerId,
+          allow: [PermissionFlagsBits.SendMessages],
+        },
+      ],
+    });
 
-    if (existingChannel) return;
+    const content = `Saudações! Eu sou o bot do Discordle. \n\nSerei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\nEstarei a disposição para qualquer ajuda.  :robot:`;
 
-    guild.channels
-      .create({
-        name: "Daily Discordle",
-        type: ChannelType.GuildText,
-        permissionOverwrites: [
-          {
-            id: guild.roles.everyone,
-            allow: [PermissionFlagsBits.ViewChannel],
-            deny: [
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.CreateInstantInvite,
-            ],
-          },
-          {
-            id: client.user.id,
-            allow: [PermissionFlagsBits.SendMessages],
-          },
-          {
-            id: guild.ownerId,
-            allow: [PermissionFlagsBits.SendMessages],
-          },
-        ],
-      })
-      .then(async (channel) => {
-        const content = `Saudações! Eu sou o bot do Discordle. \n\nSerei responsável por informá-los sobre cada **atualização** diária do Discordle de ${guild.name}. \n\nEstarei a disposição para qualquer ajuda.  :robot:`;
+    await discordleChannel.send(content);
 
-        await channel.send(content);
-      });
-  });
+    client.on("channelCreate", async (channel: NonThreadGuildBasedChannel) => {
+      try {
+        if (
+          channel.type === ChannelType.GuildText &&
+          channel.name !== "daily-discordle"
+        ) {
+          const messages = await channel.messages.fetch({ limit: 5 });
+          const hasBotMessages = messages.some((message) => message.author.bot);
 
-  client.on("channelUpdate", async (channel: NonThreadGuildBasedChannel) => {
-    try {
-      if (
-        channel.type === ChannelType.GuildText &&
-        channel.name !== "daily-discordle"
-      ) {
-        const messages = await channel.messages.fetch({ limit: 5 });
-        const hasBotMessages = messages.some((message) => message.author.bot);
+          const members: IMember[] = channel.members
+            .filter((x) => !x.user.bot)
+            .map((member) => {
+              return {
+                id: member.id,
+                username: member.nickname || member.user.username,
+                avatarUrl: member.displayAvatarURL(),
+                inUse: false,
+              } as IMember;
+            });
 
-        const members: IMember[] = channel.members
-          .filter((x) => !x.user.bot)
-          .map((member) => {
-            return {
-              id: member.id,
-              username: member.nickname || member.user.username,
-              avatarUrl: member.displayAvatarURL(),
-              inUse: false,
-            } as IMember;
-          });
+          const privateChannel: IInstanceChannel = {
+            channelId: channel.id,
+            channelName: channel.name,
+            members,
+            notListed: true,
+          };
 
-        const privateChannel: IInstanceChannel = {
-          channelId: channel.id,
-          channelName: channel.name,
-          members,
-          notListed: true,
-        };
-
-        if (messages.size === 5 && !hasBotMessages)
-          await AddPrivateChannel(channel.guild.id, privateChannel);
+          if (messages.size === 5 && !hasBotMessages)
+            await AddPrivateChannel(channel.guild.id, privateChannel);
+        }
+      } catch {
+        return null;
       }
-    } catch {
-      return null;
-    }
+    });
   });
 
   client.on("ready", async () => {
@@ -190,17 +182,17 @@ const DiscordBotConnection = async () => {
       interaction.commandName === "getcode" &&
       interaction.channel.name === "daily-discordle"
     ) {
-      const MIN_VALUE = 10000;
-      const MAX_VALUE = 99999;
-
-      const randomNum =
-        Math.floor(Math.random() * (MAX_VALUE - MIN_VALUE + 1)) + MIN_VALUE;
-
-      const code = randomNum.toString();
-
       var db = new sqlite3.Database("code_database");
 
-      db.serialize(() => {
+      db.serialize(async () => {
+        const MIN_VALUE = 10000;
+        const MAX_VALUE = 99999;
+
+        const randomNum =
+          Math.floor(Math.random() * (MAX_VALUE - MIN_VALUE + 1)) + MIN_VALUE;
+
+        const code = randomNum.toString();
+
         db.run(
           "CREATE TABLE IF NOT EXISTS UsersCode (id INTEGER PRIMARY KEY AUTOINCREMENT, userid TEXT, code TEXT)"
         );
@@ -210,21 +202,26 @@ const DiscordBotConnection = async () => {
         db.run(
           `INSERT INTO UsersCode (userid, code) VALUES (${interaction.user.id}, ${code})`
         );
+
+        const content = `Olá, <@${interaction.user.id}>! \n\nAqui está seu código: ${code}. \n\nAté mais! :robot:`;
+
+        try {
+          await interaction.reply({
+            content,
+            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
+          });
+        } catch {
+          await interaction.reply({
+            content:
+              "Falha ao gerar seu código :frowning: \n\nTente novamente mais tarde.",
+            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
+          });
+        } finally {
+          db.close();
+        }
       });
-
-      const message = `Olá, <@${interaction.user.id}>! \n\n Aqui está seu código: ${code} \n\n Até mais! :robot:`;
-
-      try {
-        await interaction.reply({
-          content: message,
-          ephemeral: true,
-          flags: MessageFlags.Ephemeral,
-        });
-
-        db.close();
-      } catch {
-        return;
-      }
     }
   });
 
