@@ -31,6 +31,7 @@ const DiscordBotConnection = async () => {
   client.on("guildCreate", async (guild) => {
     const channels = await guild.channels.fetch();
 
+    //
     // const discordleChannelId = channels.find(
     //   (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
     // )?.id;
