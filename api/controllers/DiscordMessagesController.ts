@@ -304,8 +304,12 @@ async function SendScoreMessageOnDailyDiscordle(
     return accumulator + curValue.score;
   }, 0);
 
-  scoreDetails.forEach(({ success }) => {
-    scoreEmojis += success ? ":white_check_mark: " : ":x: ";
+  scoreDetails.forEach(({ success, score }) => {
+    scoreEmojis += success
+      ? score === 2
+        ? ":green_square: "
+        : ":orange_square: "
+      : ":red_square: ";
   });
 
   const today = new Date().toLocaleDateString("pt-br");
