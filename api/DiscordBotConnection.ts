@@ -31,7 +31,6 @@ const DiscordBotConnection = async () => {
   client.on("guildCreate", async (guild) => {
     const channels = await guild.channels.fetch();
 
-    //
     // const discordleChannelId = channels.find(
     //   (c) => c.name === "daily-discordle" && c.type === ChannelType.GuildText
     // )?.id;
@@ -142,7 +141,7 @@ const DiscordBotConnection = async () => {
 
   client.on("ready", async () => {
     await client.application.commands.create({
-      name: "getcode",
+      name: "code",
       description: "Retorna o código único para login no Discordle.",
     });
   });
@@ -151,17 +150,16 @@ const DiscordBotConnection = async () => {
     if (!interaction.isCommand()) return;
 
     if (
-      interaction.commandName === "getcode" &&
+      interaction.commandName === "code" &&
       interaction.channel.name !== "daily-discordle"
     )
       await interaction.reply({
         content: "Use este comando no chat daily-discordle!",
         ephemeral: true,
-        flags: MessageFlags.Ephemeral,
       });
 
     if (
-      interaction.commandName === "getcode" &&
+      interaction.commandName === "code" &&
       interaction.channel.name === "daily-discordle"
     ) {
       var db = new sqlite3.Database("code_database");
@@ -185,24 +183,15 @@ const DiscordBotConnection = async () => {
           `INSERT INTO UsersCode (userid, code) VALUES (${interaction.user.id}, ${code})`
         );
 
-        const content = `Olá, <@${interaction.user.id}>! \n\nAqui está seu código: ${code}. \n\nAté mais! :robot:`;
+        db.close();
 
-        try {
-          await interaction.reply({
-            content,
-            ephemeral: true,
-            flags: MessageFlags.Ephemeral,
+        interaction
+          .reply({ content: "Gerando código...", ephemeral: true })
+          .then(async () => {
+            await interaction.editReply({
+              content: `Olá, <@${interaction.user.id}>! \n\nAqui está seu código: ${code}. \n\nAté mais! :robot:`,
+            });
           });
-        } catch {
-          await interaction.reply({
-            content:
-              "Falha ao gerar seu código :frowning: \n\nTente novamente mais tarde.",
-            ephemeral: true,
-            flags: MessageFlags.Ephemeral,
-          });
-        } finally {
-          db.close();
-        }
       });
     }
   });
