@@ -52,10 +52,8 @@ const DiscordBotConnection = async () => {
         ) {
           try {
             const messages = await channel.messages.fetch({ limit: 5 });
-            const hasBotMessages = messages.some(
-              (message) => message.author.bot
-            );
-            if (messages.size === 5 && !hasBotMessages) return channel;
+
+            if (messages.size === 5) return channel;
           } catch {
             return null;
           }

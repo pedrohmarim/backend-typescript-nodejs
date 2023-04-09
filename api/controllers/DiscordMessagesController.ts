@@ -96,13 +96,39 @@ async function GetServerName(channelId: string, authToken: string) {
   };
 }
 
-function getRandomUniquePositions(length: number, count: number): number[] {
+function getRandomUniquePositions(
+  length: number,
+  count: number,
+  minDistance: number,
+  maxTries: number = 3
+): number[] {
   const positions: number[] = [];
 
-  while (positions.length < count) {
-    const newPosition = Math.floor(Math.random() * length);
+  let tries = 0;
 
-    if (!positions.includes(newPosition)) {
+  while (positions.length < count && tries < maxTries) {
+    let newPosition = Math.floor(Math.random() * length);
+    let isPositionValid = positions.every(
+      (position) => Math.abs(newPosition - position) >= minDistance
+    );
+
+    if (isPositionValid) positions.push(newPosition);
+
+    tries++;
+  }
+
+  if (positions.length < count) {
+    const remainingCount = count - positions.length;
+    const usedPositions = [...positions];
+
+    for (let i = 0; i < remainingCount; i++) {
+      let newPosition = Math.floor(Math.random() * length);
+
+      while (usedPositions.includes(newPosition)) {
+        newPosition = Math.floor(Math.random() * length);
+      }
+
+      usedPositions.push(newPosition);
       positions.push(newPosition);
     }
   }
@@ -171,7 +197,7 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
       return message;
   });
 
-  const randomPositions = getRandomUniquePositions(messages.length - 1, 5);
+  const randomPositions = getRandomUniquePositions(messages.length - 1, 5, 100);
 
   const choosedMessages: IGetDiscordMessagesResponse[] = [];
 
@@ -194,8 +220,6 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
   };
 
   await MessageInstanceModel.create(messageInstance);
-
-  return;
 }
 
 //#endregion GetDiscordMessages
@@ -440,14 +464,7 @@ function updateMessagesAtMidnight(channelId: string, guildId: string) {
     console.log(`Tempo restante até a meia-noite: ${timeLeft}`);
   }, 1000);
 
-  const msUntilMidnight = moment
-    .duration({
-      hours: 23 - now.hours(),
-      minutes: 59 - now.minutes(),
-      seconds: 59 - now.seconds(),
-      milliseconds: 1000 - now.milliseconds(),
-    })
-    .asMilliseconds();
+  const msUntilMidnight = timeUntilMidnight.asMilliseconds();
 
   setTimeout(async () => {
     await handleDeleteYesterdayMessages(channelId);
@@ -503,17 +520,7 @@ async function GetChannelMembers(req: Request, res: Response) {
 }
 
 async function CreateGuildInstance(guildInstance: IGuildInstance) {
-  const { guildId } = guildInstance;
-
-  const alreadyExists = await GuildInstanceModel.findOne({ guildId }).lean();
-
-  if (alreadyExists !== null) return;
-
-  await GuildInstanceModel.updateOne(
-    { guildId },
-    { guildInstance },
-    { upsert: true }
-  );
+  await GuildInstanceModel.create(guildInstance);
 }
 
 async function sendCreatedInstanceMessage(channelId: string, guildId: string) {
@@ -547,11 +554,13 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 
   const messages = await MessageInstanceModel.find({ channelId });
 
-  if (!messages.length) await handleLoopForChooseFiveMessages(channelId);
+  if (!messages.length) {
+    await handleLoopForChooseFiveMessages(channelId);
+
+    await sendCreatedInstanceMessage(channelId.toString(), guildId.toString());
+  }
 
   updateMessagesAtMidnight(channelId.toString(), guildId.toString());
-
-  await sendCreatedInstanceMessage(channelId.toString(), guildId.toString());
 
   return res.json().status(200);
 }
