@@ -164,8 +164,8 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
 
   const messages: IMessage[] = await result.body.json();
 
-  // maximo de 500 mensagens
-  for (let index = 1; index <= 5; index++) {
+  // maximo de 800 mensagens
+  for (let index = 1; index <= 8; index++) {
     const lastElementId = messages[messages.length - 1].id;
 
     const previousArray = await handleGetPreviousMessageArray(
@@ -197,7 +197,7 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
       return message;
   });
 
-  const randomPositions = getRandomUniquePositions(messages.length - 1, 5, 100);
+  const randomPositions = getRandomUniquePositions(messages.length - 1, 5, 45);
 
   const choosedMessages: IGetDiscordMessagesResponse[] = [];
 
@@ -436,10 +436,24 @@ async function sendNewDiscordleMessagesAvaible(
 let timer = "";
 
 function GetTimer(req: Request, res: Response) {
+  const { guildId, channelId } = req.query;
+
+  if (!timer.length) {
+    const timeLeft = updateMessagesAtMidnight(
+      channelId.toString(),
+      guildId.toString(),
+      true
+    );
+    return res.json(timeLeft);
+  }
   return res.json(timer);
 }
 
-function updateMessagesAtMidnight(channelId: string, guildId: string) {
+function updateMessagesAtMidnight(
+  channelId: string,
+  guildId: string,
+  nullTimer = false
+) {
   const now = moment.tz("America/Sao_Paulo");
 
   const timeUntilMidnight = moment.duration({
@@ -453,7 +467,7 @@ function updateMessagesAtMidnight(channelId: string, guildId: string) {
     .utc(timeUntilMidnight.asMilliseconds())
     .format("HH:mm:ss");
 
-  setInterval(function () {
+  setInterval(() => {
     timeUntilMidnight.subtract(1, "second");
 
     timeLeft = moment
@@ -473,6 +487,8 @@ function updateMessagesAtMidnight(channelId: string, guildId: string) {
 
     await sendNewDiscordleMessagesAvaible(channelId, guildId);
   }, msUntilMidnight);
+
+  if (nullTimer) return timeLeft;
 }
 //#endregion
 
