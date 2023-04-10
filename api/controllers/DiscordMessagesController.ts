@@ -261,13 +261,18 @@ async function GetChoosedMessages(req: Request, res: Response) {
 
 //#region SaveScore
 async function getAwnser(userId: string, channelId: string) {
-  const currentDate = new Date().toLocaleDateString("pt-br");
+  const currentDate = new Date().toLocaleDateString("pt-br", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   const scoreInstance: IScoreInstance = await ScoreInstanceModel.findOne({
     channelId,
   }).lean();
 
-  if (!scoreInstance) return;
+  if (!scoreInstance) return [] as IAwnser[];
 
   const currentDayAwnsers = scoreInstance.scores.find(
     (x) => x.member.id === userId && x.date === currentDate
@@ -292,8 +297,7 @@ async function VerifyAlreadyAwnsered(req: Request, res: Response) {
     channelId.toString()
   );
 
-  if (currentDayAwnsers) return res.json(currentDayAwnsers);
-  else res.json([]);
+  return res.json(currentDayAwnsers);
 }
 
 async function findDailyDiscordleChannelId(guildId: string) {
@@ -336,7 +340,12 @@ async function SendScoreMessageOnDailyDiscordle(
       : ":red_square: ";
   });
 
-  const today = new Date().toLocaleDateString("pt-br");
+  const today = new Date().toLocaleDateString("pt-br", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   const content = `<@${userId}> respondeu o Discordle diário! (${today}) \n\nPontuação: ${totalScore} \n\n   **1**     **2**     **3**    **4**     **5** \n ${scoreEmojis} \n\nResponda você também! \nhttps://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId}`;
 
@@ -415,7 +424,12 @@ async function sendNewDiscordleMessagesAvaible(
 
   const channelName = await GetDiscordleChannelName(channelId, guildId);
 
-  const today = new Date().toLocaleDateString("pt-br");
+  const today = new Date().toLocaleDateString("pt-br", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   const content = `:warning:  AVISO!  :warning: \n\nNOVO DISCORDLE DE **#${channelName}** JÁ DISPONÍVEL!!! (${today}) \n\nResponda agora mesmo! \n\nhttps://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId} \n\nAté mais.  :robot:`;
 
