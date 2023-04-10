@@ -45,6 +45,7 @@ function handleDistinctAuthorArray(messages: IMessage[]): string[] {
   const authors: string[] = [];
 
   messages.forEach(({ author }) => {
+    if (!author) return;
     const { username, bot } = author;
     if (!bot) authors.push(username);
   });
@@ -180,21 +181,13 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
 
   messages = messages.filter((message) => {
     const isSticker = message.sticker_items?.length;
-    const isServerEmoji = message.content.includes("<:");
-    const hasOnlyOneMention = message.content.split("<@").length - 1 === 1;
-    const allEqualCharacters = verifyMessage(message.content);
-    const isntBot = !message.author.bot;
-    const notShortMessage =
-      message.content.length > 5 && !message.attachments.length;
+    const isServerEmoji = message.content?.includes("<:");
+    const isBot = message.author?.bot;
+    const allEqualCharacters = message.content?.length
+      ? verifyMessage(message.content)
+      : false;
 
-    if (
-      !isSticker &&
-      !isServerEmoji &&
-      !hasOnlyOneMention &&
-      !allEqualCharacters &&
-      isntBot &&
-      notShortMessage
-    )
+    if (!isSticker && !isServerEmoji && !allEqualCharacters && !isBot)
       return message;
   });
 
