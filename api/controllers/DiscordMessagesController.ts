@@ -162,7 +162,7 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     headers: { authorization: authToken },
   });
 
-  const messages: IMessage[] = await result.body.json();
+  let messages: IMessage[] = await result.body.json();
 
   // maximo de 800 mensagens
   for (let index = 1; index <= 8; index++) {
@@ -174,10 +174,10 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
       authToken
     );
 
-    messages.concat(previousArray);
+    messages = messages.concat(previousArray);
   }
 
-  messages.filter((message) => {
+  messages = messages.filter((message) => {
     const isSticker = message.sticker_items?.length;
     const isServerEmoji = message.content.includes("<:");
     const hasOnlyOneMention = message.content.split("<@").length - 1 === 1;
