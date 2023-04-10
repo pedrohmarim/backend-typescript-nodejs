@@ -7,6 +7,7 @@ import moment from "moment-timezone";
 import sqlite3 from "sqlite3";
 import {
   IAwnser,
+  IGetTableResponse,
   IRankingTableData,
   IScoreInstance,
   IUserScoreDetail,
@@ -600,7 +601,7 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
 //#region GetDiscordleHistory
 
 async function GetDiscordleHistory(req: Request, res: Response) {
-  const { channelId } = req.query;
+  const { channelId, guildId } = req.query;
 
   const scoreInstance: IScoreInstance = await ScoreInstanceModel.findOne({
     channelId,
@@ -663,7 +664,15 @@ async function GetDiscordleHistory(req: Request, res: Response) {
       return data;
     });
 
-  return res.json(rankingTableData);
+  const guildInstance: IGuildInstance = await GuildInstanceModel.findOne({
+    guildId,
+  }).lean();
+
+  const channelName = guildInstance.channels.find(
+    (channel) => channel.channelId === channelId
+  ).channelName;
+
+  return res.json({ channelName, rankingTableData } as IGetTableResponse);
 }
 
 async function GetUserScoreDetail(req: Request, res: Response) {

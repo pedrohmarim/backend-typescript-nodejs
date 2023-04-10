@@ -18,6 +18,11 @@ export interface IAwnser {
   tabKey: number;
 }
 
+export interface IGetTableResponse {
+  channelName: string;
+  rankingTableData: IRankingTableData[];
+}
+
 export interface IRankingTableData {
   rowId: string;
   position: number;
