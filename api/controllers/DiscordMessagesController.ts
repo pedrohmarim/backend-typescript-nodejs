@@ -98,46 +98,6 @@ async function GetServerName(channelId: string, authToken: string) {
   };
 }
 
-function getRandomUniquePositions(
-  length: number,
-  count: number,
-  minDistance: number,
-  maxTries: number = 3
-): number[] {
-  const positions: number[] = [];
-
-  let tries = 0;
-
-  while (positions.length < count && tries < maxTries) {
-    let newPosition = Math.floor(Math.random() * length);
-    let isPositionValid = positions.every(
-      (position) => Math.abs(newPosition - position) >= minDistance
-    );
-
-    if (isPositionValid) positions.push(newPosition);
-
-    tries++;
-  }
-
-  if (positions.length < count) {
-    const remainingCount = count - positions.length;
-    const usedPositions = [...positions];
-
-    for (let i = 0; i < remainingCount; i++) {
-      let newPosition = Math.floor(Math.random() * length);
-
-      while (usedPositions.includes(newPosition)) {
-        newPosition = Math.floor(Math.random() * length);
-      }
-
-      usedPositions.push(newPosition);
-      positions.push(newPosition);
-    }
-  }
-
-  return positions;
-}
-
 async function AddPrivateChannel(
   guildId: string,
   privateChannel: IInstanceChannel
@@ -157,6 +117,33 @@ async function AddPrivateChannel(
   }
 }
 
+function getRandomUniquePositions(
+  max: number,
+  count: number,
+  offset = 0
+): number[] {
+  const set = new Set<number>();
+  let tries = 0;
+  let lastNumber = -1;
+
+  while (set.size < count && tries < 2) {
+    let min = lastNumber + 150;
+    if (min > max) {
+      min = offset;
+      lastNumber = -1;
+      tries++;
+    }
+
+    const randomNumber = Math.floor(Math.random() * (max - min + 1) + min);
+    if (!set.has(randomNumber)) {
+      set.add(randomNumber);
+      lastNumber = randomNumber;
+    }
+  }
+
+  return Array.from(set);
+}
+
 async function handleLoopForChooseFiveMessages(channelId: string) {
   const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=100`;
 
@@ -166,8 +153,8 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
 
   let messages: IMessage[] = await result.body.json();
 
-  // maximo de 800 mensagens
-  for (let index = 1; index <= 8; index++) {
+  // maximo de 1400 mensagens + as 100 primeiras
+  for (let index = 1; index <= 14; index++) {
     const lastElementId = messages[messages.length - 1].id;
 
     const previousArray = await handleGetPreviousMessageArray(
@@ -177,6 +164,8 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     );
 
     messages = messages.concat(previousArray);
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   messages = messages.filter((message) => {
@@ -191,7 +180,7 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
       return message;
   });
 
-  const randomPositions = getRandomUniquePositions(messages.length - 1, 5, 45);
+  const randomPositions = getRandomUniquePositions(messages.length - 1, 5, 0);
 
   const choosedMessages: IGetDiscordMessagesResponse[] = [];
 
@@ -222,9 +211,9 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
 async function GetHints(req: Request, res: Response) {
   const { id, channelId } = req.query;
 
-  const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=50`;
+  const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=50&around=${id}`;
 
-  const result = await request(`${instanceUrl}&around=${id}`, {
+  const result = await request(instanceUrl, {
     headers: { authorization: authToken },
   });
 
