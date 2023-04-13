@@ -675,7 +675,12 @@ async function GetUserScoreDetail(req: Request, res: Response) {
         scoreDetails,
       } as IUserScoreDetail;
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.date.split("/").reverse().join("-")).getTime() -
+        new Date(b.date.split("/").reverse().join("-")).getTime() -
+        new Date().getTime()
+    );
 
   return res.json(result);
 }
