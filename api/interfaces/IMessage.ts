@@ -1,20 +1,15 @@
 export interface IMessageInstance {
-  messages: IGetDiscordMessagesResponse[];
+  messages: IMessage[];
+  authors: string[];
   channelId: string;
   serverName: string;
   serverIcon: string;
-}
-
-export interface IGetDiscordMessagesResponse {
-  message: IMessage;
-  authors: string[];
 }
 
 export interface IMessage {
   id: string;
   author: IAuthor;
   content: string;
-  type: number;
   mentions: IMention[];
   attachments: IAttachments[];
   sticker_items?: [];

@@ -19,7 +19,6 @@ import {
 } from "interfaces/IGuildInstance";
 import {
   IChannel,
-  IGetDiscordMessagesResponse,
   IMessage,
   IMessageInstance,
   IGuild,
@@ -28,18 +27,6 @@ import {
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
 //#region GetDiscordMessages
-
-function verifyMessage(content: string): boolean {
-  let allEqual = true;
-
-  content.split("").forEach((caractere) => {
-    if (caractere !== content[0]) {
-      allEqual = false;
-    }
-  });
-
-  return allEqual;
-}
 
 function handleDistinctAuthorArray(messages: IMessage[]): string[] {
   const authors: string[] = [];
@@ -117,31 +104,16 @@ async function AddPrivateChannel(
   }
 }
 
-function getRandomUniquePositions(
-  max: number,
-  count: number,
-  offset = 0
-): number[] {
-  const set = new Set<number>();
-  let tries = 0;
-  let lastNumber = -1;
+function getRandomUniquePositions(max: number, count: number): number[] {
+  const result = [];
 
-  while (set.size < count && tries < 2) {
-    let min = lastNumber + 150;
-    if (min > max) {
-      min = offset;
-      lastNumber = -1;
-      tries++;
-    }
+  while (result.length < count) {
+    const randomIndex = Math.floor(Math.random() * max);
 
-    const randomNumber = Math.floor(Math.random() * (max - min + 1) + min);
-    if (!set.has(randomNumber)) {
-      set.add(randomNumber);
-      lastNumber = randomNumber;
-    }
+    if (!result.includes(randomIndex)) result.push(randomIndex);
   }
 
-  return Array.from(set);
+  return result;
 }
 
 async function handleLoopForChooseFiveMessages(channelId: string) {
@@ -172,23 +144,26 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     const isSticker = message.sticker_items?.length;
     const isServerEmoji = message.content?.includes("<:");
     const isBot = message.author?.bot;
-    const allEqualCharacters = message.content?.length
-      ? verifyMessage(message.content)
-      : false;
+    const allEqualCharacters = /^(.)\1+$/.test(message.content);
+    const shortMessage =
+      !message.attachments?.length && message.content?.length < 15;
 
-    if (!isSticker && !isServerEmoji && !allEqualCharacters && !isBot)
+    if (
+      !isSticker &&
+      !isServerEmoji &&
+      !allEqualCharacters &&
+      !isBot &&
+      !shortMessage
+    )
       return message;
   });
 
-  const randomPositions = getRandomUniquePositions(messages.length - 1, 5, 0);
+  const randomPositions = getRandomUniquePositions(messages.length - 1, 5);
 
-  const choosedMessages: IGetDiscordMessagesResponse[] = [];
+  const choosedMessages: IMessage[] = [];
 
   for (let i = 0; i < 5; i++) {
-    choosedMessages.push({
-      message: messages[randomPositions[i]],
-      authors: handleDistinctAuthorArray(messages),
-    });
+    choosedMessages.push(messages[randomPositions[i]]);
   }
 
   const serverNameAndIcon = await GetServerName(channelId, authToken);
@@ -197,6 +172,7 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
 
   const messageInstance: IMessageInstance = {
     messages: choosedMessages,
+    authors: handleDistinctAuthorArray(messages),
     serverName,
     serverIcon,
     channelId,
@@ -235,10 +211,31 @@ async function GetChoosedMessages(req: Request, res: Response) {
   const messageInstance: IMessageInstance = await MessageInstanceModel.findOne({
     channelId,
   })
-    .select("messages channelId serverName serverIcon -_id")
+    .select("messages authors channelId serverName serverIcon -_id")
     .lean();
 
-  return res.json(messageInstance);
+  const choosedMessages: IMessageInstance = {
+    channelId: messageInstance.channelId,
+    serverIcon: messageInstance.serverIcon,
+    serverName: messageInstance.serverName,
+    authors: messageInstance.authors,
+    messages: messageInstance.messages.map((message: IMessage) => {
+      return {
+        content: message.content,
+        attachments: message.attachments,
+        mentions: message.mentions,
+        timestamp: message.timestamp,
+        id: message.id,
+        sticker_items: message.sticker_items,
+        author: {
+          username: message.author.username,
+          id: message.author.id,
+        },
+      } as IMessage;
+    }),
+  };
+
+  return res.json(choosedMessages);
 }
 //#endregion
 
