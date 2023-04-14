@@ -685,6 +685,64 @@ async function GetDiscordleHistory(req: Request, res: Response) {
   return res.json({ channelName, rankingTableData } as IGetTableResponse);
 }
 
+async function UpdateMember(memberId: string, username: string) {
+  const query = { "channels.members.id": memberId };
+  const update = {
+    $set: {
+      "channels.$[channel].members.$[member].username": username,
+    },
+  };
+  const options = {
+    arrayFilters: [
+      { "channel.members.id": memberId },
+      { "member.id": memberId },
+    ],
+  };
+
+  await GuildInstanceModel.updateMany(query, update, options);
+
+  const queryScore = { "scores.member.id": memberId };
+  const updateScore = {
+    $set: {
+      "scores.$[score].member.username": username,
+    },
+  };
+  const optionsScore = {
+    arrayFilters: [{ "score.member.id": memberId }, { "member.id": memberId }],
+  };
+
+  await ScoreInstanceModel.updateMany(queryScore, updateScore, optionsScore);
+}
+
+async function UpdateAvatarUrl(memberId: string, avatarUrl: string) {
+  const query = { "channels.members.id": memberId };
+  const update = {
+    $set: {
+      "channels.$[channel].members.$[member].avatarUrl": avatarUrl,
+    },
+  };
+  const options = {
+    arrayFilters: [
+      { "channel.members.id": memberId },
+      { "member.id": memberId },
+    ],
+  };
+
+  await GuildInstanceModel.updateMany(query, update, options);
+
+  const queryScore = { "scores.member.id": memberId };
+  const updateScore = {
+    $set: {
+      "scores.$[score].member.avatarUrl": avatarUrl,
+    },
+  };
+  const optionsScore = {
+    arrayFilters: [{ "score.member.id": memberId }, { "member.id": memberId }],
+  };
+
+  await ScoreInstanceModel.updateMany(queryScore, updateScore, optionsScore);
+}
+
 async function GetUserScoreDetail(req: Request, res: Response) {
   const { userId, channelId } = req.query;
 
@@ -748,6 +806,8 @@ async function ValidateToken(req: Request, res: Response) {
 }
 
 export {
+  UpdateAvatarUrl,
+  UpdateMember,
   ValidateToken,
   GetUserScoreDetail,
   GetDiscordleHistory,

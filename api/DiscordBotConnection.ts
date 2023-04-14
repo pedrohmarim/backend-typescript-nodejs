@@ -1,14 +1,14 @@
 import sqlite3 from "sqlite3";
-import { request } from "undici";
 import {
   CreateGuildInstance,
   AddPrivateChannel,
+  UpdateMember,
+  UpdateAvatarUrl,
 } from "./controllers/DiscordMessagesController";
 import {
   ChannelType,
   Client,
   GatewayIntentBits,
-  MessageFlags,
   NonThreadGuildBasedChannel,
 } from "discord.js";
 import {
@@ -142,6 +142,23 @@ const DiscordBotConnection = async () => {
       name: "code",
       description: "Retorna o código único para login no Discordle.",
     });
+  });
+
+  client.on("guildMemberUpdate", async (oldMember, newMember) => {
+    if (
+      oldMember.nickname !== newMember.nickname ||
+      oldMember.user.username !== newMember.user.username ||
+      oldMember.user.avatar !== newMember.user.avatar
+    )
+      await UpdateMember(
+        newMember.id,
+        newMember.nickname || newMember.user.username
+      );
+  });
+
+  client.on("userUpdate", async (oldMember, newMember) => {
+    if (oldMember.avatar !== newMember.avatar)
+      await UpdateAvatarUrl(newMember.id, newMember.displayAvatarURL());
   });
 
   client.on("interactionCreate", async (interaction) => {
