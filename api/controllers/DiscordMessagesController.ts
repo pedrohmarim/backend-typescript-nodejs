@@ -352,8 +352,6 @@ async function SaveScore(req: Request, res: Response) {
     channelId
   );
 
-  if (currentDayAwnsers?.length) return res.json();
-
   const guildInstance = await GuildInstanceModel.findOne({
     guildId,
   }).lean();
@@ -364,20 +362,43 @@ async function SaveScore(req: Request, res: Response) {
     (member: IMember) => member.id === scores.userId
   );
 
-  const query = { channelId };
-  const update = { member, $push: { scores: { ...scores, member } } };
-  const options = { upsert: true };
+  if (currentDayAwnsers.length) {
+    currentDayAwnsers.push(scores.scoreDetails);
 
-  await ScoreInstanceModel.updateOne(query, update, options);
+    const today = new Date().toLocaleDateString("pt-br", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
 
-  await SendScoreMessageOnDailyDiscordle(
-    guildId,
-    channelId,
-    member.id,
-    scores.scoreDetails
-  );
+    await ScoreInstanceModel.updateOne(
+      {
+        scores: { $elemMatch: { date: today, "member.id": member.id } },
+        channelId,
+      },
+      { $push: { "scores.$.scoreDetails": scores.scoreDetails } }
+    );
 
-  return res.json().status(200);
+    if (currentDayAwnsers.length === 5) {
+      await SendScoreMessageOnDailyDiscordle(
+        guildId,
+        channelId,
+        member.id,
+        currentDayAwnsers
+      );
+
+      return res.json(true).status(200);
+    }
+  } else {
+    const query = { channelId };
+    const update = { member, $push: { scores: { ...scores, member } } };
+    const options = { upsert: true };
+
+    await ScoreInstanceModel.findOneAndUpdate(query, update, options);
+  }
+
+  return res.json(false).status(200);
 }
 
 //#endregion
