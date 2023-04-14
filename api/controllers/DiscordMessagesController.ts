@@ -106,11 +106,16 @@ async function AddPrivateChannel(
 
 function getRandomUniquePositions(max: number, count: number): number[] {
   const result = [];
+  const minDistance = Math.ceil(max / count);
 
   while (result.length < count) {
     const randomIndex = Math.floor(Math.random() * max);
+    const lastResultIndex = result[result.length - 1];
+    const distance = Math.abs(randomIndex - lastResultIndex);
 
-    if (!result.includes(randomIndex)) result.push(randomIndex);
+    if (distance >= minDistance || result.length === 0) {
+      if (!result.includes(randomIndex)) result.push(randomIndex);
+    }
   }
 
   return result;
@@ -123,11 +128,14 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     headers: { authorization: authToken },
   });
 
-  let messages: IMessage[] = await result.body.json();
+  let firstHundredMessages: IMessage[] = await result.body.json();
+  let messages: IMessage[] = [];
 
-  // maximo de 1400 mensagens + as 100 primeiras
-  for (let index = 1; index <= 14; index++) {
-    const lastElementId = messages[messages.length - 1].id;
+  // maximo de 2000 mensagens
+  for (let index = 1; index <= 20; index++) {
+    const lastElementId = messages.length
+      ? messages[messages.length - 1].id
+      : firstHundredMessages[firstHundredMessages.length - 1].id;
 
     const previousArray = await handleGetPreviousMessageArray(
       lastElementId,
@@ -137,8 +145,10 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
 
     messages = messages.concat(previousArray);
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
   }
+
+  if (!messages.length) messages = firstHundredMessages;
 
   messages = messages.filter((message) => {
     const isSticker = message.sticker_items?.length;
