@@ -53,14 +53,20 @@ async function handleDistinctAuthorArray(
     (channel) => channel.channelId === channelId
   );
 
-  const authors = channel.members.map((member) => {
-    if (authorsId.includes(member.id))
-      return {
-        id: member.id,
-        username: member.username,
-        avatarUrl: member.avatarUrl,
-      } as IAuthor;
-  });
+  const authors = channel.members
+    .map((member) => {
+      if (authorsId.includes(member.id))
+        return {
+          id: member.id,
+          username: member.username,
+          avatarUrl: member.avatarUrl,
+        } as IAuthor;
+
+      return null;
+    })
+    .filter((author) => author);
+
+  console.log("authors", authors);
 
   return authors;
 }
