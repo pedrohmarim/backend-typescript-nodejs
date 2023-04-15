@@ -22,24 +22,47 @@ import {
   IMessage,
   IMessageInstance,
   IGuild,
+  IAuthor,
 } from "../interfaces/IMessage";
 
 const authToken = `Bot ${process.env.BOT_TOKEN}`;
 
 //#region GetDiscordMessages
 
-function handleDistinctAuthorArray(messages: IMessage[]): string[] {
-  const authors: string[] = [];
+async function handleDistinctAuthorArray(
+  messages: IMessage[],
+  guildId: string,
+  channelId: string
+): Promise<IAuthor[]> {
+  const authorsId: string[] = [];
 
   messages.forEach(({ author }) => {
     if (!author) return;
-    const { username, bot } = author;
-    if (!bot) authors.push(username);
+
+    const { bot, id } = author;
+
+    if (!bot && !authorsId.find((authorId) => authorId === id))
+      authorsId.push(author.id);
   });
 
-  return authors.filter(
-    (value, index, array) => array.indexOf(value) === index
+  const guildInstance: IGuildInstance = await GuildInstanceModel.findOne({
+    guildId,
+  });
+
+  const channel: IInstanceChannel = guildInstance.channels.find(
+    (channel) => channel.channelId === channelId
   );
+
+  const authors = channel.members.map((member) => {
+    if (authorsId.includes(member.id))
+      return {
+        id: member.id,
+        username: member.username,
+        avatarUrl: member.avatarUrl,
+      } as IAuthor;
+  });
+
+  return authors;
 }
 
 async function handleGetPreviousMessageArray(
@@ -121,7 +144,10 @@ function getRandomUniquePositions(max: number, count: number): number[] {
   return result;
 }
 
-async function handleLoopForChooseFiveMessages(channelId: string) {
+async function handleLoopForChooseFiveMessages(
+  channelId: string,
+  guildId: string
+) {
   const instanceUrl = `https://discord.com/api/v10/channels/${channelId}/messages?limit=100`;
 
   const result = await request(`${instanceUrl}`, {
@@ -186,9 +212,10 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
 
   const messageInstance: IMessageInstance = {
     messages: choosedMessages,
-    authors: handleDistinctAuthorArray(messages),
+    authors: await handleDistinctAuthorArray(messages, guildId, channelId),
     serverName,
     serverIcon,
+    guildId,
     channelId,
   };
 
@@ -229,6 +256,7 @@ async function GetChoosedMessages(req: Request, res: Response) {
     .lean();
 
   const choosedMessages: IMessageInstance = {
+    guildId: messageInstance.guildId,
     channelId: messageInstance.channelId,
     serverIcon: messageInstance.serverIcon,
     serverName: messageInstance.serverName,
@@ -403,7 +431,11 @@ async function SaveScore(req: Request, res: Response) {
     }
   } else {
     const query = { channelId };
-    const update = { member, $push: { scores: { ...scores, member } } };
+    const update = {
+      guildId,
+      member,
+      $push: { scores: { ...scores, member } },
+    };
     const options = { upsert: true };
 
     await ScoreInstanceModel.findOneAndUpdate(query, update, options);
@@ -512,7 +544,7 @@ function updateMessagesAtMidnight(
   setTimeout(async () => {
     await handleDeleteYesterdayMessages(channelId);
 
-    await handleLoopForChooseFiveMessages(channelId);
+    await handleLoopForChooseFiveMessages(channelId, guildId);
 
     await sendNewDiscordleMessagesAvaible(channelId, guildId);
   }, msUntilMidnight);
@@ -600,7 +632,7 @@ async function CreateDiscordleInstance(req: Request, res: Response) {
   const messages = await MessageInstanceModel.find({ channelId });
 
   if (!messages.length) {
-    await handleLoopForChooseFiveMessages(channelId);
+    await handleLoopForChooseFiveMessages(channelId, guildId);
 
     await sendCreatedInstanceMessage(channelId.toString(), guildId.toString());
   }
@@ -689,8 +721,12 @@ async function GetDiscordleHistory(req: Request, res: Response) {
   return res.json({ channelName, rankingTableData } as IGetTableResponse);
 }
 
-async function UpdateMember(memberId: string, username: string) {
-  const query = { "channels.members.id": memberId };
+async function UpdateMemberUsername(
+  guildId: string,
+  memberId: string,
+  username: string
+) {
+  const query = { guildId, "channels.members.id": memberId };
   const update = {
     $set: {
       "channels.$[channel].members.$[member].username": username,
@@ -705,7 +741,23 @@ async function UpdateMember(memberId: string, username: string) {
 
   await GuildInstanceModel.updateMany(query, update, options);
 
-  const queryScore = { "scores.member.id": memberId };
+  const queryMessage = { guildId, "authors.id": memberId };
+  const updateMessage = {
+    $set: {
+      "authors.$[author].username": username,
+    },
+  };
+  const optionsMessage = {
+    arrayFilters: [{ "author.id": memberId }, { id: memberId }],
+  };
+
+  await MessageInstanceModel.updateMany(
+    queryMessage,
+    updateMessage,
+    optionsMessage
+  );
+
+  const queryScore = { guildId, "scores.member.id": memberId };
   const updateScore = {
     $set: {
       "scores.$[score].member.username": username,
@@ -733,6 +785,22 @@ async function UpdateAvatarUrl(memberId: string, avatarUrl: string) {
   };
 
   await GuildInstanceModel.updateMany(query, update, options);
+
+  const queryMessage = { "authors.id": memberId };
+  const updateMessage = {
+    $set: {
+      "authors.$[author].avatarUrl": avatarUrl,
+    },
+  };
+  const optionsMessage = {
+    arrayFilters: [{ "author.id": memberId }, { id: memberId }],
+  };
+
+  await MessageInstanceModel.updateMany(
+    queryMessage,
+    updateMessage,
+    optionsMessage
+  );
 
   const queryScore = { "scores.member.id": memberId };
   const updateScore = {
@@ -811,7 +879,7 @@ async function ValidateToken(req: Request, res: Response) {
 
 export {
   UpdateAvatarUrl,
-  UpdateMember,
+  UpdateMemberUsername,
   ValidateToken,
   GetUserScoreDetail,
   GetDiscordleHistory,

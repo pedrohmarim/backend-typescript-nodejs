@@ -1,6 +1,7 @@
 export interface IMessageInstance {
   messages: IMessage[];
-  authors: string[];
+  authors: IAuthor[];
+  guildId: string;
   channelId: string;
   serverName: string;
   serverIcon: string;
@@ -23,7 +24,8 @@ export interface IAttachments {
 export interface IAuthor {
   id: string;
   username: string;
-  bot: boolean;
+  avatarUrl: string;
+  bot?: boolean;
 }
 
 export interface IMention {

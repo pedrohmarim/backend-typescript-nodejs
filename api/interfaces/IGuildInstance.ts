@@ -14,5 +14,4 @@ export interface IMember {
   id: string;
   username: string;
   avatarUrl: string;
-  inUse: boolean;
 }

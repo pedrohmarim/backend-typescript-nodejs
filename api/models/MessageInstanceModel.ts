@@ -9,6 +9,10 @@ import {
 
 const MessageInstance = new Schema<IMessageInstance>(
   {
+    guildId: {
+      type: String,
+      required: true,
+    },
     channelId: {
       type: String,
       required: true,
@@ -22,7 +26,25 @@ const MessageInstance = new Schema<IMessageInstance>(
       required: true,
     },
     authors: {
-      type: [String],
+      type: [
+        {
+          required: true,
+          type: new Schema<IAuthor>({
+            id: {
+              type: String,
+              required: true,
+            },
+            username: {
+              type: String,
+              required: true,
+            },
+            avatarUrl: {
+              type: String,
+              required: true,
+            },
+          }),
+        },
+      ],
       required: true,
     },
     messages: [
@@ -82,7 +104,8 @@ const MessageInstance = new Schema<IMessageInstance>(
       },
     ],
   },
-  { timestamps: true }
+
+  { versionKey: false }
 );
 
 export default model("MessageInstance", MessageInstance);

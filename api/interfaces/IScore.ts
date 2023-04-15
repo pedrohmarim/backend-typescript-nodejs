@@ -2,6 +2,7 @@ import { IMember } from "./IGuildInstance";
 
 export interface IScoreInstance {
   scores: IPostSaveScore[];
+  guildId: string;
   channelId: string;
 }
 

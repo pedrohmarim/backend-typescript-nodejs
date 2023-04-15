@@ -2,7 +2,7 @@ import sqlite3 from "sqlite3";
 import {
   CreateGuildInstance,
   AddPrivateChannel,
-  UpdateMember,
+  UpdateMemberUsername,
   UpdateAvatarUrl,
 } from "./controllers/DiscordMessagesController";
 import {
@@ -73,7 +73,6 @@ const DiscordBotConnection = async () => {
               id: member.id,
               username: member.nickname || member.user.username,
               avatarUrl: member.displayAvatarURL(),
-              inUse: false,
             } as IMember;
           });
 
@@ -118,7 +117,6 @@ const DiscordBotConnection = async () => {
               id: member.id,
               username: member.nickname || member.user.username,
               avatarUrl: member.displayAvatarURL(),
-              inUse: false,
             } as IMember;
           });
 
@@ -150,7 +148,8 @@ const DiscordBotConnection = async () => {
       oldMember.user.username !== newMember.user.username ||
       oldMember.user.avatar !== newMember.user.avatar
     )
-      await UpdateMember(
+      await UpdateMemberUsername(
+        newMember.guild.id,
         newMember.id,
         newMember.nickname || newMember.user.username
       );

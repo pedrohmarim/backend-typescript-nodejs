@@ -42,10 +42,6 @@ const GuildInstance = new Schema<IGuildInstance>(
                   type: String,
                   required: true,
                 },
-                inUse: {
-                  type: Boolean,
-                  required: true,
-                },
               }),
             },
           ],
@@ -54,7 +50,7 @@ const GuildInstance = new Schema<IGuildInstance>(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 export default model("GuildInstance", GuildInstance);
