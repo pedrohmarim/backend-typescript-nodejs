@@ -157,13 +157,17 @@ async function handleLoopForChooseFiveMessages(channelId: string) {
     const allEqualCharacters = /^(.)\1+$/.test(message.content);
     const shortMessage =
       !message.attachments?.length && message.content?.length < 15;
+    const hasOnlyOneMention =
+      message.content?.split("<@").length - 1 === 1 &&
+      !message.attachments?.length;
 
     if (
       !isSticker &&
       !isServerEmoji &&
       !allEqualCharacters &&
       !isBot &&
-      !shortMessage
+      !shortMessage &&
+      !hasOnlyOneMention
     )
       return message;
   });
