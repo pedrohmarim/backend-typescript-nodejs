@@ -276,7 +276,6 @@ async function GetChoosedMessages(req: Request, res: Response) {
         id: message.id,
         sticker_items: message.sticker_items,
         author: {
-          username: message.author.username,
           id: message.author.id,
         },
       } as IMessage;
