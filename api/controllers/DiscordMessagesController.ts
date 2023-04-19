@@ -483,7 +483,7 @@ async function sendNewDiscordleMessagesAvaible(
     year: "numeric",
   });
 
-  const content = `:warning:  AVISO!  :warning: \n\nNOVO DISCORDLE DE **#${channelName}** JÁ DISPONÍVEL!!! (${today}) \n\nResponda agora mesmo! \n\nhttps://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId} \n\nAté mais.  :robot:`;
+  const content = `:warning:  @everyone AVISO! @everyone  :warning: \n\nNOVO DISCORDLE DE **#${channelName}** JÁ DISPONÍVEL!!! (${today}) \n\nResponda agora mesmo! \n\nhttps://discordlle.vercel.app/game?channelId=${channelId}&guildId=${guildId} \n\nAté mais.  :robot:`;
 
   body.append("content", content);
 
